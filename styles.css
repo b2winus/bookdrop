@@ -1,0 +1,102 @@
+.bookdrop-modal {
+	width: min(680px, 92vw);
+}
+
+.bookdrop-search-bar {
+	display: flex;
+	gap: var(--size-4-2);
+	align-items: center;
+}
+
+.bookdrop-search-bar .bookdrop-search-input {
+	flex: 1;
+	min-width: 0;
+}
+
+.bookdrop-status {
+	margin: var(--size-4-2) 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.bookdrop-results {
+	max-height: 60vh;
+	overflow-y: auto;
+}
+
+.bookdrop-result {
+	display: flex;
+	gap: var(--size-4-3);
+	padding: var(--size-4-2);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.bookdrop-result.is-selected {
+	background-color: var(--background-modifier-hover);
+}
+
+.bookdrop-cover {
+	flex: 0 0 48px;
+	height: 68px;
+	background-color: var(--background-secondary);
+	border-radius: var(--radius-s);
+	overflow: hidden;
+}
+
+.bookdrop-cover img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.bookdrop-info {
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.bookdrop-title {
+	font-weight: var(--font-semibold);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.bookdrop-meta {
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.bookdrop-faint {
+	color: var(--text-faint);
+}
+
+.bookdrop-template-setting {
+	flex-wrap: wrap;
+}
+
+.bookdrop-template-area {
+	width: 100%;
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-small);
+}
+
+.bookdrop-var-help table {
+	width: 100%;
+	font-size: var(--font-ui-small);
+}
+
+.bookdrop-var-help td {
+	padding: 2px var(--size-4-2);
+	vertical-align: top;
+}
+
+.bookdrop-template-setting .setting-item-control {
+	flex: 1 1 100%;
+	align-items: flex-start;
+}
