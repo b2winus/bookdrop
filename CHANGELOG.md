@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2
+
+- Fix `package-lock.json` so dependencies install with a plain `npm ci`.
+
 ## 0.3.1
 
 - Settings use Obsidian's declarative settings API on 1.13+, so they appear in Obsidian's settings search. Older versions keep the classic settings page.
