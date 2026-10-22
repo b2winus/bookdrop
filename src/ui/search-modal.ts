@@ -43,7 +43,7 @@ export class BookSearchModal extends Modal {
 		this.input.inputEl.addClass("bookdrop-search-input");
 
 		const dd = new DropdownComponent(bar);
-		PROVIDERS.forEach((p) => dd.addOption(p, providerLabel(p)));
+		for (const p of PROVIDERS) dd.addOption(p, providerLabel(p));
 		dd.setValue(this.provider);
 		dd.onChange((v) => {
 			this.provider = v as ProviderId;

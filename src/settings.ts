@@ -1,4 +1,14 @@
-import { App, Notice, PluginSettingTab, Setting } from "obsidian";
+import {
+	App,
+	Notice,
+	PluginSettingTab,
+	Setting,
+	SettingDefinition,
+	SettingDefinitionGroup,
+	SettingDefinitionItem,
+	SettingGroup,
+	requireApiVersion,
+} from "obsidian";
 import type BookdropPlugin from "./main";
 import { ProviderId } from "./types";
 import { PROVIDERS, providerLabel, searchBooks } from "./providers";
@@ -17,9 +27,9 @@ export interface BookdropSettings {
 	folder: string;
 	askFolderEachTime: boolean;
 	fileNameTemplate: string;
-	/** 비어 있으면 현재 언어의 기본 템플릿을 쓴다 */
+	/** Empty means "use the default template for the current language". */
 	noteTemplate: string;
-	/** 비어 있으면 현재 언어의 기본 템플릿을 쓴다 */
+	/** Empty means "use the default template for the current language". */
 	insertTemplate: string;
 	openAfterCreate: boolean;
 	overwriteFrontmatter: boolean;
@@ -42,6 +52,14 @@ export const DEFAULT_SETTINGS: BookdropSettings = {
 	overwriteFrontmatter: false,
 };
 
+type SettingsKey = keyof BookdropSettings;
+type TemplateField = "noteTemplate" | "insertTemplate";
+
+/**
+ * Settings are described once in getSettingDefinitions().
+ * Obsidian 1.13+ renders them declaratively (and indexes them for settings search);
+ * older versions call display(), which renders the same definitions with the Setting API.
+ */
 export class BookdropSettingTab extends PluginSettingTab {
 	plugin: BookdropPlugin;
 
@@ -50,236 +68,294 @@ export class BookdropSettingTab extends PluginSettingTab {
 		this.plugin = plugin;
 	}
 
-	display(): void {
-		const { containerEl } = this;
-		const s = this.plugin.settings;
-		const save = () => this.plugin.saveSettings();
-		containerEl.empty();
+	// ── Storage ─────────────────────────────
 
-		// ── General ──────────────────────────
-		new Setting(containerEl).setName(t("set.general")).setHeading();
+	getControlValue(key: string): unknown {
+		return this.plugin.settings[key as SettingsKey];
+	}
 
-		new Setting(containerEl)
-			.setName(t("set.language"))
-			.setDesc(t("set.languageDesc"))
-			.addDropdown((dd) =>
-				dd
-					.addOption("auto", t("set.languageAuto"))
-					.addOption("en", "English")
-					.addOption("ko", "한국어")
-					.setValue(s.language)
-					.onChange(async (v) => {
-						s.language = v as LangSetting;
-						await save(); // applies the language
-						this.display(); // redraw in the new language
+	async setControlValue(key: string, value: unknown): Promise<void> {
+		const s = this.plugin.settings as unknown as Record<string, unknown>;
+		let v = value;
+		if (typeof v === "string") {
+			if (key === "folder") v = v.trim().replace(/^\/+|\/+$/g, "");
+			else if (key === "fileNameTemplate") v = v.trim() ? v : DEFAULT_FILENAME_TEMPLATE;
+			else if (key === "kakaoApiKey" || key === "googleApiKey" || key === "googleLangRestrict") v = v.trim();
+		}
+		s[key] = v;
+		await this.plugin.saveSettings();
+		if (key === "language") this.redraw();
+	}
+
+	/** Re-render in the newly selected language. */
+	private redraw(): void {
+		if (requireApiVersion("1.13.0")) this.update();
+		else this.renderAll();
+	}
+
+	// ── Definitions ─────────────────────────
+
+	getSettingDefinitions(): SettingDefinitionItem[] {
+		const providerOptions: Record<string, string> = {};
+		for (const p of PROVIDERS) providerOptions[p] = providerLabel(p);
+
+		const general: SettingDefinitionGroup = {
+			type: "group",
+			heading: t("set.general"),
+			items: [
+				{
+					name: t("set.language"),
+					desc: t("set.languageDesc"),
+					control: {
+						type: "dropdown",
+						key: "language",
+						options: { auto: t("set.languageAuto"), en: "English", ko: "한국어" },
+					},
+				},
+			],
+		};
+
+		const search: SettingDefinitionGroup = {
+			type: "group",
+			heading: t("set.search"),
+			items: [
+				{
+					name: t("set.provider"),
+					desc: t("set.providerDesc"),
+					control: { type: "dropdown", key: "defaultProvider", options: providerOptions },
+				},
+				{
+					name: t("set.fallback"),
+					desc: t("set.fallbackDesc"),
+					control: { type: "toggle", key: "fallbackToOther" },
+				},
+				{
+					name: t("set.maxResults"),
+					desc: t("set.maxResultsDesc"),
+					control: { type: "slider", key: "maxResults", min: 5, max: 40, step: 5 },
+				},
+			],
+		};
+
+		const keys: SettingDefinitionGroup = {
+			type: "group",
+			heading: t("set.keys"),
+			items: [
+				{
+					name: t("set.kakaoKey"),
+					desc: createFragment((f) => {
+						f.appendText(t("set.kakaoKeyDesc"));
+						f.createEl("a", { text: t("set.kakaoKeyLink"), href: "https://developers.kakao.com/console/app" });
 					}),
-			);
+					render: (setting: Setting) => this.renderKakaoKey(setting),
+				},
+				{
+					name: t("set.googleKey"),
+					desc: t("set.googleKeyDesc"),
+					render: (setting: Setting) => this.renderPassword(setting, "googleApiKey", t("set.optional")),
+				},
+				{
+					name: t("set.googleLang"),
+					desc: t("set.googleLangDesc"),
+					control: { type: "text", key: "googleLangRestrict", placeholder: t("set.googleLangPlaceholder") },
+				},
+			],
+		};
 
-		// ── Search ───────────────────────────
-		new Setting(containerEl).setName(t("set.search")).setHeading();
+		const newNote: SettingDefinitionGroup = {
+			type: "group",
+			heading: t("set.newNote"),
+			items: [
+				{
+					name: t("set.folder"),
+					desc: t("set.folderDesc"),
+					control: { type: "folder", key: "folder", placeholder: "Books", includeRoot: true },
+				},
+				{
+					name: t("set.askFolder"),
+					desc: t("set.askFolderDesc"),
+					control: { type: "toggle", key: "askFolderEachTime" },
+				},
+				{
+					name: t("set.fileName"),
+					desc: t("set.fileNameDesc"),
+					control: { type: "text", key: "fileNameTemplate", placeholder: DEFAULT_FILENAME_TEMPLATE },
+				},
+				{
+					name: t("set.openAfter"),
+					control: { type: "toggle", key: "openAfterCreate" },
+				},
+				{
+					name: t("set.noteTemplate"),
+					desc: t("set.noteTemplateDesc"),
+					render: (setting: Setting) => this.renderTemplate(setting, "noteTemplate", defaultNoteTemplate, 16),
+				},
+			],
+		};
 
-		new Setting(containerEl)
-			.setName(t("set.provider"))
-			.setDesc(t("set.providerDesc"))
-			.addDropdown((dd) => {
-				PROVIDERS.forEach((p) => dd.addOption(p, providerLabel(p)));
-				dd.setValue(s.defaultProvider).onChange(async (v) => {
-					s.defaultProvider = v as ProviderId;
-					await save();
+		const currentNote: SettingDefinitionGroup = {
+			type: "group",
+			heading: t("set.currentNote"),
+			items: [
+				{
+					name: t("set.insertTemplate"),
+					desc: t("set.insertTemplateDesc"),
+					render: (setting: Setting) => this.renderTemplate(setting, "insertTemplate", defaultInsertTemplate, 7),
+				},
+				{
+					name: t("set.overwrite"),
+					desc: t("set.overwriteDesc"),
+					control: { type: "toggle", key: "overwriteFrontmatter" },
+				},
+			],
+		};
+
+		const variables: SettingDefinitionGroup = {
+			type: "group",
+			heading: t("set.variables"),
+			items: [
+				{
+					name: t("set.variables"),
+					desc: createFragment((f) => {
+						const help = f.createDiv({ cls: "bookdrop-var-help" });
+						help.createEl("p", { text: t("set.variablesHelp") });
+						const table = help.createEl("table");
+						for (const name of TEMPLATE_VARIABLES) {
+							const tr = table.createEl("tr");
+							tr.createEl("td").createEl("code", { text: `{{${name}}}` });
+							tr.createEl("td", { text: t(`var.${name}` as Key) });
+						}
+					}),
+				},
+			],
+		};
+
+		return [general, search, keys, newNote, currentNote, variables];
+	}
+
+	// ── Custom rows ─────────────────────────
+
+	private renderPassword(setting: Setting, key: "kakaoApiKey" | "googleApiKey", placeholder: string): void {
+		setting.addText((tx) => {
+			tx.inputEl.type = "password";
+			tx.setPlaceholder(placeholder)
+				.setValue(this.plugin.settings[key])
+				.onChange((v) => {
+					void this.setControlValue(key, v);
 				});
-			});
+		});
+	}
 
-		new Setting(containerEl)
-			.setName(t("set.fallback"))
-			.setDesc(t("set.fallbackDesc"))
-			.addToggle((tg) =>
-				tg.setValue(s.fallbackToOther).onChange(async (v) => {
-					s.fallbackToOther = v;
-					await save();
-				}),
-			);
-
-		new Setting(containerEl)
-			.setName(t("set.maxResults"))
-			.setDesc(t("set.maxResultsDesc"))
-			.addSlider((sl) =>
-				sl
-					.setLimits(5, 40, 5)
-					.setValue(s.maxResults)
-					.setDynamicTooltip()
-					.onChange(async (v) => {
-						s.maxResults = v;
-						await save();
-					}),
-			);
-
-		// ── API keys ─────────────────────────
-		new Setting(containerEl).setName(t("set.keys")).setHeading();
-
-		new Setting(containerEl)
-			.setName(t("set.kakaoKey"))
-			.setDesc(
-				createFragment((f) => {
-					f.appendText(t("set.kakaoKeyDesc"));
-					f.createEl("a", { text: t("set.kakaoKeyLink"), href: "https://developers.kakao.com/console/app" });
-				}),
-			)
-			.addText((tx) => {
-				tx.inputEl.type = "password";
-				tx.setPlaceholder(t("set.kakaoKeyPlaceholder"))
-					.setValue(s.kakaoApiKey)
-					.onChange(async (v) => {
-						s.kakaoApiKey = v.trim();
-						await save();
-					});
-			})
-			.addButton((b) =>
-				b.setButtonText(t("set.testConnection")).onClick(async () => {
-					try {
-						const r = await searchBooks("kakao", "어린 왕자", this.plugin.searchOptions());
-						new Notice(t("notice.kakaoOk", { count: r.length }));
-					} catch (e) {
-						new Notice(e instanceof Error ? e.message : String(e));
-					}
-				}),
-			);
-
-		new Setting(containerEl)
-			.setName(t("set.googleKey"))
-			.setDesc(t("set.googleKeyDesc"))
-			.addText((tx) => {
-				tx.inputEl.type = "password";
-				tx.setPlaceholder(t("set.optional"))
-					.setValue(s.googleApiKey)
-					.onChange(async (v) => {
-						s.googleApiKey = v.trim();
-						await save();
-					});
-			});
-
-		new Setting(containerEl)
-			.setName(t("set.googleLang"))
-			.setDesc(t("set.googleLangDesc"))
-			.addText((tx) =>
-				tx
-					.setPlaceholder(t("set.googleLangPlaceholder"))
-					.setValue(s.googleLangRestrict)
-					.onChange(async (v) => {
-						s.googleLangRestrict = v.trim();
-						await save();
-					}),
-			);
-
-		// ── New notes ────────────────────────
-		new Setting(containerEl).setName(t("set.newNote")).setHeading();
-
-		new Setting(containerEl)
-			.setName(t("set.folder"))
-			.setDesc(t("set.folderDesc"))
-			.addSearch((sr) => {
-				const setFolder = async (v: string) => {
-					s.folder = v.trim().replace(/^\/+|\/+$/g, "");
-					await save();
-				};
-				sr.setPlaceholder("Books").setValue(s.folder).onChange(setFolder);
-				new FolderSuggest(this.app, sr.inputEl, (path) => void setFolder(path));
-			});
-
-		new Setting(containerEl)
-			.setName(t("set.askFolder"))
-			.setDesc(t("set.askFolderDesc"))
-			.addToggle((tg) =>
-				tg.setValue(s.askFolderEachTime).onChange(async (v) => {
-					s.askFolderEachTime = v;
-					await save();
-				}),
-			);
-
-		new Setting(containerEl)
-			.setName(t("set.fileName"))
-			.setDesc(t("set.fileNameDesc"))
-			.addText((tx) =>
-				tx
-					.setPlaceholder(DEFAULT_FILENAME_TEMPLATE)
-					.setValue(s.fileNameTemplate)
-					.onChange(async (v) => {
-						s.fileNameTemplate = v || DEFAULT_FILENAME_TEMPLATE;
-						await save();
-					}),
-			);
-
-		new Setting(containerEl).setName(t("set.openAfter")).addToggle((tg) =>
-			tg.setValue(s.openAfterCreate).onChange(async (v) => {
-				s.openAfterCreate = v;
-				await save();
+	private renderKakaoKey(setting: Setting): void {
+		this.renderPassword(setting, "kakaoApiKey", t("set.kakaoKeyPlaceholder"));
+		setting.addButton((b) =>
+			b.setButtonText(t("set.testConnection")).onClick(() => {
+				void this.testKakao();
 			}),
 		);
+	}
 
-		this.templateArea(containerEl, "set.noteTemplate", "set.noteTemplateDesc", "noteTemplate", defaultNoteTemplate, 16);
-
-		// ── Current note ─────────────────────
-		new Setting(containerEl).setName(t("set.currentNote")).setHeading();
-
-		this.templateArea(containerEl, "set.insertTemplate", "set.insertTemplateDesc", "insertTemplate", defaultInsertTemplate, 7);
-
-		new Setting(containerEl)
-			.setName(t("set.overwrite"))
-			.setDesc(t("set.overwriteDesc"))
-			.addToggle((tg) =>
-				tg.setValue(s.overwriteFrontmatter).onChange(async (v) => {
-					s.overwriteFrontmatter = v;
-					await save();
-				}),
-			);
-
-		// ── Variables ────────────────────────
-		new Setting(containerEl).setName(t("set.variables")).setHeading();
-		const help = containerEl.createDiv({ cls: "bookdrop-var-help" });
-		help.createEl("p", { text: t("set.variablesHelp") });
-		const table = help.createEl("table");
-		for (const name of TEMPLATE_VARIABLES) {
-			const tr = table.createEl("tr");
-			tr.createEl("td").createEl("code", { text: `{{${name}}}` });
-			tr.createEl("td", { text: t(`var.${name}` as Key) });
+	private async testKakao(): Promise<void> {
+		try {
+			const r = await searchBooks("kakao", "어린 왕자", this.plugin.searchOptions());
+			new Notice(t("notice.kakaoOk", { count: r.length }));
+		} catch (e) {
+			new Notice(e instanceof Error ? e.message : String(e));
 		}
 	}
 
 	/**
-	 * 템플릿 입력칸. 비어 있거나 기본값과 같으면 ""로 저장해서
-	 * 언어를 바꿀 때 기본 템플릿도 함께 바뀌게 한다.
+	 * Template textarea with a reset button. Empty or default text is stored as ""
+	 * so the default follows the interface language.
 	 */
-	private templateArea(
-		el: HTMLElement,
-		nameKey: Key,
-		descKey: Key,
-		field: "noteTemplate" | "insertTemplate",
-		getDefault: typeof defaultNoteTemplate,
-		rows: number,
-	): void {
-		const s = this.plugin.settings;
+	private renderTemplate(setting: Setting, field: TemplateField, getDefault: typeof defaultNoteTemplate, rows: number): void {
 		let areaEl: HTMLTextAreaElement | null = null;
-		const setting = new Setting(el)
-			.setName(t(nameKey))
-			.setDesc(t(descKey))
-			.addExtraButton((b) =>
-				b
-					.setIcon("rotate-ccw")
-					.setTooltip(t("set.reset"))
-					.onClick(async () => {
-						s[field] = "";
-						await this.plugin.saveSettings();
-						if (areaEl) areaEl.value = getDefault(getLang());
-					}),
-			)
-			.addTextArea((ta) => {
-				areaEl = ta.inputEl;
-				ta.inputEl.rows = rows;
-				ta.inputEl.addClass("bookdrop-template-area");
-				ta.setValue(s[field] || getDefault(getLang())).onChange(async (v) => {
-					s[field] = !v.trim() || v === getDefault(getLang()) ? "" : v;
-					await this.plugin.saveSettings();
-				});
-			});
 		setting.settingEl.addClass("bookdrop-template-setting");
+		setting.addExtraButton((b) =>
+			b
+				.setIcon("rotate-ccw")
+				.setTooltip(t("set.reset"))
+				.onClick(() => {
+					if (areaEl) areaEl.value = getDefault(getLang());
+					void this.setControlValue(field, "");
+				}),
+		);
+		setting.addTextArea((ta) => {
+			areaEl = ta.inputEl;
+			ta.inputEl.rows = rows;
+			ta.inputEl.addClass("bookdrop-template-area");
+			ta.setValue(this.plugin.settings[field] || getDefault(getLang())).onChange((v) => {
+				const stored = !v.trim() || v === getDefault(getLang()) ? "" : v;
+				void this.setControlValue(field, stored);
+			});
+		});
+	}
+
+	// ── Fallback for Obsidian < 1.13 ────────
+
+	display(): void {
+		this.renderAll();
+	}
+
+	private renderAll(): void {
+		const el = this.containerEl;
+		el.empty();
+		for (const item of this.getSettingDefinitions()) {
+			if (!("type" in item) || item.type !== "group") continue;
+			if (item.heading) new Setting(el).setName(item.heading).setHeading();
+			for (const def of item.items ?? []) {
+				if (!("type" in def)) this.renderLegacy(el, def);
+			}
+		}
+	}
+
+	private renderLegacy(el: HTMLElement, def: SettingDefinition): void {
+		const setting = new Setting(el).setName(def.name);
+		if (def.desc) setting.setDesc(def.desc);
+
+		if ("render" in def && def.render) {
+			// Our render callbacks only use the Setting.
+			def.render(setting, undefined as unknown as SettingGroup);
+			return;
+		}
+		if (!("control" in def) || !def.control) return;
+
+		const c = def.control;
+		const raw = this.getControlValue(c.key);
+		const value = typeof raw === "string" || typeof raw === "number" || typeof raw === "boolean" ? raw : "";
+		const set = (v: unknown) => {
+			void this.setControlValue(c.key, v);
+		};
+
+		switch (c.type) {
+			case "dropdown":
+				setting.addDropdown((dd) => {
+					for (const [k, label] of Object.entries(c.options)) dd.addOption(k, label);
+					dd.setValue(String(value)).onChange(set);
+				});
+				break;
+			case "toggle":
+				setting.addToggle((tg) => tg.setValue(Boolean(value)).onChange(set));
+				break;
+			case "slider":
+				setting.addSlider((sl) => sl.setLimits(c.min, c.max, c.step).setValue(Number(value)).onChange(set));
+				break;
+			case "text":
+				setting.addText((tx) =>
+					tx
+						.setPlaceholder(c.placeholder ?? "")
+						.setValue(String(value))
+						.onChange(set),
+				);
+				break;
+			case "folder":
+				setting.addSearch((sr) => {
+					sr.setPlaceholder(c.placeholder ?? "")
+						.setValue(String(value))
+						.onChange(set);
+					new FolderSuggest(this.app, sr.inputEl, set);
+				});
+				break;
+		}
 	}
 }

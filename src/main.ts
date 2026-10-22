@@ -71,9 +71,10 @@ export default class BookdropPlugin extends Plugin {
 	/** 프런트매터의 isbn → title → 파일 이름 순으로 검색어를 추정 */
 	private guessQuery(file: TFile): string {
 		const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
-		const isbn = fm?.isbn;
-		if (isbn) return String(isbn);
-		if (typeof fm?.title === "string" && fm.title.trim()) return fm.title;
+		const isbn: unknown = fm?.["isbn"];
+		if (typeof isbn === "string" || typeof isbn === "number") return String(isbn);
+		const title: unknown = fm?.["title"];
+		if (typeof title === "string" && title.trim()) return title;
 		return file.basename;
 	}
 
@@ -103,17 +104,7 @@ export default class BookdropPlugin extends Plugin {
 	/** 폴더 선택 창을 띄워 경로를 돌려준다. 취소하면 null */
 	private pickFolder(): Promise<string | null> {
 		return new Promise((resolve) => {
-			let chosen: string | null = null;
-			const modal = new FolderPickModal(this.app, this.settings.folder.trim(), (path) => {
-				chosen = path;
-			});
-			const origClose = modal.onClose.bind(modal);
-			modal.onClose = () => {
-				origClose();
-				// onChooseItem은 onClose 직후에 불리므로 한 틱 기다린다
-				window.setTimeout(() => resolve(chosen), 0);
-			};
-			modal.open();
+			new FolderPickModal(this.app, this.settings.folder.trim(), resolve).open();
 		});
 	}
 
@@ -159,7 +150,8 @@ export default class BookdropPlugin extends Plugin {
 	}
 
 	async loadSettings(): Promise<void> {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		const saved = (await this.loadData()) as Partial<BookdropSettings> | null;
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, saved ?? {});
 		// 이전 버전이 저장한 기본 템플릿은 비워서, 언어에 맞는 기본값을 따르게 한다
 		if (isDefaultTemplate(this.settings.noteTemplate)) this.settings.noteTemplate = "";
 		if (isDefaultTemplate(this.settings.insertTemplate)) this.settings.insertTemplate = "";

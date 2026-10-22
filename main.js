@@ -1,8 +1,6 @@
-var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
-var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __export = (target, all) => {
   for (var name in all)
@@ -16,14 +14,6 @@ var __copyProps = (to, from, except, desc) => {
   }
   return to;
 };
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
-  // If the importer is in node compatibility mode or this is not an ESM
-  // file that has been converted to a CommonJS file using a Babel-
-  // compatible transform (i.e. "__esModule" has not been set), then set
-  // "default" to the CommonJS "module.exports" for node compatibility.
-  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
-  mod
-));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // src/main.ts
@@ -32,13 +22,13 @@ __export(main_exports, {
   default: () => BookdropPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian6 = require("obsidian");
+var import_obsidian7 = require("obsidian");
 
 // src/settings.ts
-var import_obsidian4 = require("obsidian");
+var import_obsidian5 = require("obsidian");
 
 // src/providers/kakao.ts
-var import_obsidian = require("obsidian");
+var import_obsidian2 = require("obsidian");
 
 // src/providers/utils.ts
 function toIsbn(input) {
@@ -53,9 +43,16 @@ function stripHtml(html) {
 function toHttps(url) {
   return url.replace(/^http:\/\//, "https://");
 }
+function readJson(res) {
+  try {
+    return JSON.parse(res.text);
+  } catch (e) {
+    return null;
+  }
+}
 
 // src/i18n.ts
-var obsidian = __toESM(require("obsidian"));
+var import_obsidian = require("obsidian");
 var en = {
   // commands & ribbon
   "cmd.create": "Search for a book and create a note",
@@ -259,22 +256,7 @@ var ko = {
 var dictionaries = { en, ko };
 var current = "en";
 function detectObsidianLanguage() {
-  var _a;
-  let code = "";
-  const fn = obsidian.getLanguage;
-  if (typeof fn === "function") {
-    try {
-      code = fn();
-    } catch (e) {
-    }
-  }
-  if (!code) {
-    try {
-      code = (_a = window.localStorage.getItem("language")) != null ? _a : "";
-    } catch (e) {
-    }
-  }
-  return code.toLowerCase().startsWith("ko") ? "ko" : "en";
+  return (0, import_obsidian.getLanguage)().toLowerCase().startsWith("ko") ? "ko" : "en";
 }
 function setLanguage(setting) {
   current = setting === "auto" ? detectObsidianLanguage() : setting;
@@ -332,7 +314,7 @@ function mapKakaoDoc(doc) {
   };
 }
 async function searchKakao(query, opts) {
-  var _a, _b, _c, _d, _e, _f;
+  var _a, _b;
   if (!opts.kakaoApiKey) {
     throw new Error(t("err.kakaoNoKey"));
   }
@@ -342,29 +324,26 @@ async function searchKakao(query, opts) {
     size: String(Math.min(Math.max(opts.maxResults, 1), 50))
   });
   if (isbn) params.set("target", "isbn");
-  const res = await (0, import_obsidian.requestUrl)({
+  const res = await (0, import_obsidian2.requestUrl)({
     url: `https://dapi.kakao.com/v3/search/book?${params.toString()}`,
     headers: { Authorization: `KakaoAK ${opts.kakaoApiKey.trim()}` },
     throw: false
   });
   if (res.status !== 200) {
-    let detail = "";
-    try {
-      detail = (_b = (_a = res.json) == null ? void 0 : _a.message) != null ? _b : "";
-    } catch (e) {
-      detail = (_d = (_c = res.text) == null ? void 0 : _c.slice(0, 200)) != null ? _d : "";
-    }
+    const body2 = readJson(res);
+    const detail = (_a = body2 == null ? void 0 : body2.message) != null ? _a : res.text.slice(0, 200);
     if (res.status === 401) {
       throw new Error(t("err.kakao401", { detail }));
     }
     throw new Error(t("err.kakao", { status: res.status, detail }));
   }
-  const docs = (_f = (_e = res.json) == null ? void 0 : _e.documents) != null ? _f : [];
+  const body = readJson(res);
+  const docs = (_b = body == null ? void 0 : body.documents) != null ? _b : [];
   return docs.map(mapKakaoDoc);
 }
 
 // src/providers/google.ts
-var import_obsidian2 = require("obsidian");
+var import_obsidian3 = require("obsidian");
 function cleanGoogleImage(url) {
   if (!url) return "";
   return toHttps(url).replace(/&edge=curl/, "");
@@ -400,7 +379,7 @@ function mapGoogleVolume(item) {
   };
 }
 async function searchGoogle(query, opts) {
-  var _a, _b, _c, _d, _e, _f, _g;
+  var _a, _b, _c;
   const isbn = toIsbn(query);
   const params = new URLSearchParams({
     q: isbn ? `isbn:${isbn}` : query,
@@ -409,23 +388,20 @@ async function searchGoogle(query, opts) {
   });
   if (opts.googleLangRestrict) params.set("langRestrict", opts.googleLangRestrict.trim());
   if (opts.googleApiKey) params.set("key", opts.googleApiKey.trim());
-  const res = await (0, import_obsidian2.requestUrl)({
+  const res = await (0, import_obsidian3.requestUrl)({
     url: `https://www.googleapis.com/books/v1/volumes?${params.toString()}`,
     throw: false
   });
   if (res.status !== 200) {
-    let detail = "";
-    try {
-      detail = (_c = (_b = (_a = res.json) == null ? void 0 : _a.error) == null ? void 0 : _b.message) != null ? _c : "";
-    } catch (e) {
-      detail = (_e = (_d = res.text) == null ? void 0 : _d.slice(0, 200)) != null ? _e : "";
-    }
+    const body2 = readJson(res);
+    const detail = (_b = (_a = body2 == null ? void 0 : body2.error) == null ? void 0 : _a.message) != null ? _b : res.text.slice(0, 200);
     if (res.status === 429) {
       throw new Error(t("err.google429"));
     }
     throw new Error(t("err.google", { status: res.status, detail }));
   }
-  const items = (_g = (_f = res.json) == null ? void 0 : _f.items) != null ? _g : [];
+  const body = readJson(res);
+  const items = (_c = body == null ? void 0 : body.items) != null ? _c : [];
   return items.map(mapGoogleVolume);
 }
 
@@ -442,14 +418,14 @@ function otherProvider(p) {
 }
 
 // src/ui/folder-suggest.ts
-var import_obsidian3 = require("obsidian");
+var import_obsidian4 = require("obsidian");
 function listFolders(app) {
-  return app.vault.getAllLoadedFiles().filter((f) => f instanceof import_obsidian3.TFolder).sort((a, b) => a.path.localeCompare(b.path));
+  return app.vault.getAllLoadedFiles().filter((f) => f instanceof import_obsidian4.TFolder).sort((a, b) => a.path.localeCompare(b.path));
 }
 function folderLabel(folder) {
   return folder.isRoot() ? t("folder.root") : folder.path;
 }
-var FolderSuggest = class extends import_obsidian3.AbstractInputSuggest {
+var FolderSuggest = class extends import_obsidian4.AbstractInputSuggest {
   constructor(app, inputEl, onPick) {
     super(app, inputEl);
     this.inputEl = inputEl;
@@ -470,11 +446,12 @@ var FolderSuggest = class extends import_obsidian3.AbstractInputSuggest {
     this.close();
   }
 };
-var FolderPickModal = class extends import_obsidian3.FuzzySuggestModal {
-  constructor(app, defaultPath, onPick) {
+var FolderPickModal = class extends import_obsidian4.FuzzySuggestModal {
+  constructor(app, defaultPath, onDone) {
     super(app);
+    this.chosen = null;
     this.defaultPath = defaultPath;
-    this.onPick = onPick;
+    this.onDone = onDone;
     this.setPlaceholder(t("folder.placeholder"));
     this.setInstructions([
       { command: "\u2191\u2193", purpose: t("folder.move") },
@@ -494,7 +471,11 @@ var FolderPickModal = class extends import_obsidian3.FuzzySuggestModal {
     return path === this.defaultPath ? `${label}  ${t("folder.default")}` : label;
   }
   onChooseItem(folder) {
-    this.onPick(folder.isRoot() ? "" : folder.path);
+    this.chosen = folder.isRoot() ? "" : folder.path;
+  }
+  onClose() {
+    super.onClose();
+    window.setTimeout(() => this.onDone(this.chosen), 0);
   }
 };
 
@@ -688,154 +669,276 @@ var DEFAULT_SETTINGS = {
   openAfterCreate: true,
   overwriteFrontmatter: false
 };
-var BookdropSettingTab = class extends import_obsidian4.PluginSettingTab {
+var BookdropSettingTab = class extends import_obsidian5.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
   }
-  display() {
-    const { containerEl } = this;
+  // ── Storage ─────────────────────────────
+  getControlValue(key) {
+    return this.plugin.settings[key];
+  }
+  async setControlValue(key, value) {
     const s = this.plugin.settings;
-    const save = () => this.plugin.saveSettings();
-    containerEl.empty();
-    new import_obsidian4.Setting(containerEl).setName(t("set.general")).setHeading();
-    new import_obsidian4.Setting(containerEl).setName(t("set.language")).setDesc(t("set.languageDesc")).addDropdown(
-      (dd) => dd.addOption("auto", t("set.languageAuto")).addOption("en", "English").addOption("ko", "\uD55C\uAD6D\uC5B4").setValue(s.language).onChange(async (v) => {
-        s.language = v;
-        await save();
-        this.display();
-      })
-    );
-    new import_obsidian4.Setting(containerEl).setName(t("set.search")).setHeading();
-    new import_obsidian4.Setting(containerEl).setName(t("set.provider")).setDesc(t("set.providerDesc")).addDropdown((dd) => {
-      PROVIDERS.forEach((p) => dd.addOption(p, providerLabel(p)));
-      dd.setValue(s.defaultProvider).onChange(async (v) => {
-        s.defaultProvider = v;
-        await save();
-      });
-    });
-    new import_obsidian4.Setting(containerEl).setName(t("set.fallback")).setDesc(t("set.fallbackDesc")).addToggle(
-      (tg) => tg.setValue(s.fallbackToOther).onChange(async (v) => {
-        s.fallbackToOther = v;
-        await save();
-      })
-    );
-    new import_obsidian4.Setting(containerEl).setName(t("set.maxResults")).setDesc(t("set.maxResultsDesc")).addSlider(
-      (sl) => sl.setLimits(5, 40, 5).setValue(s.maxResults).setDynamicTooltip().onChange(async (v) => {
-        s.maxResults = v;
-        await save();
-      })
-    );
-    new import_obsidian4.Setting(containerEl).setName(t("set.keys")).setHeading();
-    new import_obsidian4.Setting(containerEl).setName(t("set.kakaoKey")).setDesc(
-      createFragment((f) => {
-        f.appendText(t("set.kakaoKeyDesc"));
-        f.createEl("a", { text: t("set.kakaoKeyLink"), href: "https://developers.kakao.com/console/app" });
-      })
-    ).addText((tx) => {
-      tx.inputEl.type = "password";
-      tx.setPlaceholder(t("set.kakaoKeyPlaceholder")).setValue(s.kakaoApiKey).onChange(async (v) => {
-        s.kakaoApiKey = v.trim();
-        await save();
-      });
-    }).addButton(
-      (b) => b.setButtonText(t("set.testConnection")).onClick(async () => {
-        try {
-          const r = await searchBooks("kakao", "\uC5B4\uB9B0 \uC655\uC790", this.plugin.searchOptions());
-          new import_obsidian4.Notice(t("notice.kakaoOk", { count: r.length }));
-        } catch (e) {
-          new import_obsidian4.Notice(e instanceof Error ? e.message : String(e));
+    let v = value;
+    if (typeof v === "string") {
+      if (key === "folder") v = v.trim().replace(/^\/+|\/+$/g, "");
+      else if (key === "fileNameTemplate") v = v.trim() ? v : DEFAULT_FILENAME_TEMPLATE;
+      else if (key === "kakaoApiKey" || key === "googleApiKey" || key === "googleLangRestrict") v = v.trim();
+    }
+    s[key] = v;
+    await this.plugin.saveSettings();
+    if (key === "language") this.redraw();
+  }
+  /** Re-render in the newly selected language. */
+  redraw() {
+    if ((0, import_obsidian5.requireApiVersion)("1.13.0")) this.update();
+    else this.renderAll();
+  }
+  // ── Definitions ─────────────────────────
+  getSettingDefinitions() {
+    const providerOptions = {};
+    for (const p of PROVIDERS) providerOptions[p] = providerLabel(p);
+    const general = {
+      type: "group",
+      heading: t("set.general"),
+      items: [
+        {
+          name: t("set.language"),
+          desc: t("set.languageDesc"),
+          control: {
+            type: "dropdown",
+            key: "language",
+            options: { auto: t("set.languageAuto"), en: "English", ko: "\uD55C\uAD6D\uC5B4" }
+          }
         }
-      })
-    );
-    new import_obsidian4.Setting(containerEl).setName(t("set.googleKey")).setDesc(t("set.googleKeyDesc")).addText((tx) => {
+      ]
+    };
+    const search = {
+      type: "group",
+      heading: t("set.search"),
+      items: [
+        {
+          name: t("set.provider"),
+          desc: t("set.providerDesc"),
+          control: { type: "dropdown", key: "defaultProvider", options: providerOptions }
+        },
+        {
+          name: t("set.fallback"),
+          desc: t("set.fallbackDesc"),
+          control: { type: "toggle", key: "fallbackToOther" }
+        },
+        {
+          name: t("set.maxResults"),
+          desc: t("set.maxResultsDesc"),
+          control: { type: "slider", key: "maxResults", min: 5, max: 40, step: 5 }
+        }
+      ]
+    };
+    const keys = {
+      type: "group",
+      heading: t("set.keys"),
+      items: [
+        {
+          name: t("set.kakaoKey"),
+          desc: createFragment((f) => {
+            f.appendText(t("set.kakaoKeyDesc"));
+            f.createEl("a", { text: t("set.kakaoKeyLink"), href: "https://developers.kakao.com/console/app" });
+          }),
+          render: (setting) => this.renderKakaoKey(setting)
+        },
+        {
+          name: t("set.googleKey"),
+          desc: t("set.googleKeyDesc"),
+          render: (setting) => this.renderPassword(setting, "googleApiKey", t("set.optional"))
+        },
+        {
+          name: t("set.googleLang"),
+          desc: t("set.googleLangDesc"),
+          control: { type: "text", key: "googleLangRestrict", placeholder: t("set.googleLangPlaceholder") }
+        }
+      ]
+    };
+    const newNote = {
+      type: "group",
+      heading: t("set.newNote"),
+      items: [
+        {
+          name: t("set.folder"),
+          desc: t("set.folderDesc"),
+          control: { type: "folder", key: "folder", placeholder: "Books", includeRoot: true }
+        },
+        {
+          name: t("set.askFolder"),
+          desc: t("set.askFolderDesc"),
+          control: { type: "toggle", key: "askFolderEachTime" }
+        },
+        {
+          name: t("set.fileName"),
+          desc: t("set.fileNameDesc"),
+          control: { type: "text", key: "fileNameTemplate", placeholder: DEFAULT_FILENAME_TEMPLATE }
+        },
+        {
+          name: t("set.openAfter"),
+          control: { type: "toggle", key: "openAfterCreate" }
+        },
+        {
+          name: t("set.noteTemplate"),
+          desc: t("set.noteTemplateDesc"),
+          render: (setting) => this.renderTemplate(setting, "noteTemplate", defaultNoteTemplate, 16)
+        }
+      ]
+    };
+    const currentNote = {
+      type: "group",
+      heading: t("set.currentNote"),
+      items: [
+        {
+          name: t("set.insertTemplate"),
+          desc: t("set.insertTemplateDesc"),
+          render: (setting) => this.renderTemplate(setting, "insertTemplate", defaultInsertTemplate, 7)
+        },
+        {
+          name: t("set.overwrite"),
+          desc: t("set.overwriteDesc"),
+          control: { type: "toggle", key: "overwriteFrontmatter" }
+        }
+      ]
+    };
+    const variables = {
+      type: "group",
+      heading: t("set.variables"),
+      items: [
+        {
+          name: t("set.variables"),
+          desc: createFragment((f) => {
+            const help = f.createDiv({ cls: "bookdrop-var-help" });
+            help.createEl("p", { text: t("set.variablesHelp") });
+            const table = help.createEl("table");
+            for (const name of TEMPLATE_VARIABLES) {
+              const tr = table.createEl("tr");
+              tr.createEl("td").createEl("code", { text: `{{${name}}}` });
+              tr.createEl("td", { text: t(`var.${name}`) });
+            }
+          })
+        }
+      ]
+    };
+    return [general, search, keys, newNote, currentNote, variables];
+  }
+  // ── Custom rows ─────────────────────────
+  renderPassword(setting, key, placeholder) {
+    setting.addText((tx) => {
       tx.inputEl.type = "password";
-      tx.setPlaceholder(t("set.optional")).setValue(s.googleApiKey).onChange(async (v) => {
-        s.googleApiKey = v.trim();
-        await save();
+      tx.setPlaceholder(placeholder).setValue(this.plugin.settings[key]).onChange((v) => {
+        void this.setControlValue(key, v);
       });
     });
-    new import_obsidian4.Setting(containerEl).setName(t("set.googleLang")).setDesc(t("set.googleLangDesc")).addText(
-      (tx) => tx.setPlaceholder(t("set.googleLangPlaceholder")).setValue(s.googleLangRestrict).onChange(async (v) => {
-        s.googleLangRestrict = v.trim();
-        await save();
+  }
+  renderKakaoKey(setting) {
+    this.renderPassword(setting, "kakaoApiKey", t("set.kakaoKeyPlaceholder"));
+    setting.addButton(
+      (b) => b.setButtonText(t("set.testConnection")).onClick(() => {
+        void this.testKakao();
       })
     );
-    new import_obsidian4.Setting(containerEl).setName(t("set.newNote")).setHeading();
-    new import_obsidian4.Setting(containerEl).setName(t("set.folder")).setDesc(t("set.folderDesc")).addSearch((sr) => {
-      const setFolder = async (v) => {
-        s.folder = v.trim().replace(/^\/+|\/+$/g, "");
-        await save();
-      };
-      sr.setPlaceholder("Books").setValue(s.folder).onChange(setFolder);
-      new FolderSuggest(this.app, sr.inputEl, (path) => void setFolder(path));
-    });
-    new import_obsidian4.Setting(containerEl).setName(t("set.askFolder")).setDesc(t("set.askFolderDesc")).addToggle(
-      (tg) => tg.setValue(s.askFolderEachTime).onChange(async (v) => {
-        s.askFolderEachTime = v;
-        await save();
-      })
-    );
-    new import_obsidian4.Setting(containerEl).setName(t("set.fileName")).setDesc(t("set.fileNameDesc")).addText(
-      (tx) => tx.setPlaceholder(DEFAULT_FILENAME_TEMPLATE).setValue(s.fileNameTemplate).onChange(async (v) => {
-        s.fileNameTemplate = v || DEFAULT_FILENAME_TEMPLATE;
-        await save();
-      })
-    );
-    new import_obsidian4.Setting(containerEl).setName(t("set.openAfter")).addToggle(
-      (tg) => tg.setValue(s.openAfterCreate).onChange(async (v) => {
-        s.openAfterCreate = v;
-        await save();
-      })
-    );
-    this.templateArea(containerEl, "set.noteTemplate", "set.noteTemplateDesc", "noteTemplate", defaultNoteTemplate, 16);
-    new import_obsidian4.Setting(containerEl).setName(t("set.currentNote")).setHeading();
-    this.templateArea(containerEl, "set.insertTemplate", "set.insertTemplateDesc", "insertTemplate", defaultInsertTemplate, 7);
-    new import_obsidian4.Setting(containerEl).setName(t("set.overwrite")).setDesc(t("set.overwriteDesc")).addToggle(
-      (tg) => tg.setValue(s.overwriteFrontmatter).onChange(async (v) => {
-        s.overwriteFrontmatter = v;
-        await save();
-      })
-    );
-    new import_obsidian4.Setting(containerEl).setName(t("set.variables")).setHeading();
-    const help = containerEl.createDiv({ cls: "bookdrop-var-help" });
-    help.createEl("p", { text: t("set.variablesHelp") });
-    const table = help.createEl("table");
-    for (const name of TEMPLATE_VARIABLES) {
-      const tr = table.createEl("tr");
-      tr.createEl("td").createEl("code", { text: `{{${name}}}` });
-      tr.createEl("td", { text: t(`var.${name}`) });
+  }
+  async testKakao() {
+    try {
+      const r = await searchBooks("kakao", "\uC5B4\uB9B0 \uC655\uC790", this.plugin.searchOptions());
+      new import_obsidian5.Notice(t("notice.kakaoOk", { count: r.length }));
+    } catch (e) {
+      new import_obsidian5.Notice(e instanceof Error ? e.message : String(e));
     }
   }
   /**
-   * 템플릿 입력칸. 비어 있거나 기본값과 같으면 ""로 저장해서
-   * 언어를 바꿀 때 기본 템플릿도 함께 바뀌게 한다.
+   * Template textarea with a reset button. Empty or default text is stored as ""
+   * so the default follows the interface language.
    */
-  templateArea(el, nameKey, descKey, field, getDefault, rows) {
-    const s = this.plugin.settings;
+  renderTemplate(setting, field, getDefault, rows) {
     let areaEl = null;
-    const setting = new import_obsidian4.Setting(el).setName(t(nameKey)).setDesc(t(descKey)).addExtraButton(
-      (b) => b.setIcon("rotate-ccw").setTooltip(t("set.reset")).onClick(async () => {
-        s[field] = "";
-        await this.plugin.saveSettings();
+    setting.settingEl.addClass("bookdrop-template-setting");
+    setting.addExtraButton(
+      (b) => b.setIcon("rotate-ccw").setTooltip(t("set.reset")).onClick(() => {
         if (areaEl) areaEl.value = getDefault(getLang());
+        void this.setControlValue(field, "");
       })
-    ).addTextArea((ta) => {
+    );
+    setting.addTextArea((ta) => {
       areaEl = ta.inputEl;
       ta.inputEl.rows = rows;
       ta.inputEl.addClass("bookdrop-template-area");
-      ta.setValue(s[field] || getDefault(getLang())).onChange(async (v) => {
-        s[field] = !v.trim() || v === getDefault(getLang()) ? "" : v;
-        await this.plugin.saveSettings();
+      ta.setValue(this.plugin.settings[field] || getDefault(getLang())).onChange((v) => {
+        const stored = !v.trim() || v === getDefault(getLang()) ? "" : v;
+        void this.setControlValue(field, stored);
       });
     });
-    setting.settingEl.addClass("bookdrop-template-setting");
+  }
+  // ── Fallback for Obsidian < 1.13 ────────
+  display() {
+    this.renderAll();
+  }
+  renderAll() {
+    var _a;
+    const el = this.containerEl;
+    el.empty();
+    for (const item of this.getSettingDefinitions()) {
+      if (!("type" in item) || item.type !== "group") continue;
+      if (item.heading) new import_obsidian5.Setting(el).setName(item.heading).setHeading();
+      for (const def of (_a = item.items) != null ? _a : []) {
+        if (!("type" in def)) this.renderLegacy(el, def);
+      }
+    }
+  }
+  renderLegacy(el, def) {
+    const setting = new import_obsidian5.Setting(el).setName(def.name);
+    if (def.desc) setting.setDesc(def.desc);
+    if ("render" in def && def.render) {
+      def.render(setting, void 0);
+      return;
+    }
+    if (!("control" in def) || !def.control) return;
+    const c = def.control;
+    const raw = this.getControlValue(c.key);
+    const value = typeof raw === "string" || typeof raw === "number" || typeof raw === "boolean" ? raw : "";
+    const set = (v) => {
+      void this.setControlValue(c.key, v);
+    };
+    switch (c.type) {
+      case "dropdown":
+        setting.addDropdown((dd) => {
+          for (const [k, label] of Object.entries(c.options)) dd.addOption(k, label);
+          dd.setValue(String(value)).onChange(set);
+        });
+        break;
+      case "toggle":
+        setting.addToggle((tg) => tg.setValue(Boolean(value)).onChange(set));
+        break;
+      case "slider":
+        setting.addSlider((sl) => sl.setLimits(c.min, c.max, c.step).setValue(Number(value)).onChange(set));
+        break;
+      case "text":
+        setting.addText(
+          (tx) => {
+            var _a;
+            return tx.setPlaceholder((_a = c.placeholder) != null ? _a : "").setValue(String(value)).onChange(set);
+          }
+        );
+        break;
+      case "folder":
+        setting.addSearch((sr) => {
+          var _a;
+          sr.setPlaceholder((_a = c.placeholder) != null ? _a : "").setValue(String(value)).onChange(set);
+          new FolderSuggest(this.app, sr.inputEl, set);
+        });
+        break;
+    }
   }
 };
 
 // src/ui/search-modal.ts
-var import_obsidian5 = require("obsidian");
-var BookSearchModal = class extends import_obsidian5.Modal {
+var import_obsidian6 = require("obsidian");
+var BookSearchModal = class extends import_obsidian6.Modal {
   constructor(app, cfg) {
     super(app);
     this.results = [];
@@ -849,17 +952,17 @@ var BookSearchModal = class extends import_obsidian5.Modal {
     this.modalEl.addClass("bookdrop-modal");
     this.titleEl.setText(t("modal.title"));
     const bar = contentEl.createDiv({ cls: "bookdrop-search-bar" });
-    this.input = new import_obsidian5.TextComponent(bar);
+    this.input = new import_obsidian6.TextComponent(bar);
     this.input.setPlaceholder(t("modal.placeholder")).setValue(this.cfg.initialQuery);
     this.input.inputEl.addClass("bookdrop-search-input");
-    const dd = new import_obsidian5.DropdownComponent(bar);
-    PROVIDERS.forEach((p) => dd.addOption(p, providerLabel(p)));
+    const dd = new import_obsidian6.DropdownComponent(bar);
+    for (const p of PROVIDERS) dd.addOption(p, providerLabel(p));
     dd.setValue(this.provider);
     dd.onChange((v) => {
       this.provider = v;
       if (this.input.getValue().trim()) void this.runSearch();
     });
-    new import_obsidian5.ButtonComponent(bar).setButtonText(t("modal.search")).setCta().onClick(() => void this.runSearch());
+    new import_obsidian6.ButtonComponent(bar).setButtonText(t("modal.search")).setCta().onClick(() => void this.runSearch());
     this.statusEl = contentEl.createDiv({ cls: "bookdrop-status" });
     this.listEl = contentEl.createDiv({ cls: "bookdrop-results" });
     this.input.inputEl.addEventListener("keydown", (e) => this.onKey(e));
@@ -953,14 +1056,14 @@ var BookSearchModal = class extends import_obsidian5.Modal {
       await this.cfg.onChoose(book);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      new import_obsidian5.Notice(t("modal.failed", { error: msg }));
+      new import_obsidian6.Notice(t("modal.failed", { error: msg }));
       console.error("[Bookdrop]", err);
     }
   }
 };
 
 // src/main.ts
-var BookdropPlugin = class extends import_obsidian6.Plugin {
+var BookdropPlugin = class extends import_obsidian7.Plugin {
   async onload() {
     await this.loadSettings();
     this.addRibbonIcon("book-open", t("cmd.create"), () => this.openSearch("", (b) => this.createBookNote(b)));
@@ -984,7 +1087,7 @@ var BookdropPlugin = class extends import_obsidian6.Plugin {
       name: t("cmd.fill"),
       checkCallback: (checking) => {
         var _a;
-        const file = (_a = this.app.workspace.getActiveViewOfType(import_obsidian6.MarkdownView)) == null ? void 0 : _a.file;
+        const file = (_a = this.app.workspace.getActiveViewOfType(import_obsidian7.MarkdownView)) == null ? void 0 : _a.file;
         if (!file) return false;
         if (!checking) {
           this.openSearch(this.guessQuery(file), (book) => this.fillFrontmatter(file, book));
@@ -1017,9 +1120,10 @@ var BookdropPlugin = class extends import_obsidian6.Plugin {
   guessQuery(file) {
     var _a;
     const fm = (_a = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter;
-    const isbn = fm == null ? void 0 : fm.isbn;
-    if (isbn) return String(isbn);
-    if (typeof (fm == null ? void 0 : fm.title) === "string" && fm.title.trim()) return fm.title;
+    const isbn = fm == null ? void 0 : fm["isbn"];
+    if (typeof isbn === "string" || typeof isbn === "number") return String(isbn);
+    const title = fm == null ? void 0 : fm["title"];
+    if (typeof title === "string" && title.trim()) return title;
     return file.basename;
   }
   async createBookNote(book) {
@@ -1027,16 +1131,16 @@ var BookdropPlugin = class extends import_obsidian6.Plugin {
     if (folder === null) return;
     if (folder) await this.ensureFolder(folder);
     const fileName = makeFileName(this.settings.fileNameTemplate, book);
-    const path = (0, import_obsidian6.normalizePath)(folder ? `${folder}/${fileName}.md` : `${fileName}.md`);
+    const path = (0, import_obsidian7.normalizePath)(folder ? `${folder}/${fileName}.md` : `${fileName}.md`);
     const existing = this.app.vault.getAbstractFileByPath(path);
-    if (existing instanceof import_obsidian6.TFile) {
-      new import_obsidian6.Notice(t("notice.exists", { name: existing.basename }));
+    if (existing instanceof import_obsidian7.TFile) {
+      new import_obsidian7.Notice(t("notice.exists", { name: existing.basename }));
       await this.app.workspace.getLeaf(false).openFile(existing);
       return;
     }
     const content = renderTemplate(this.noteTemplate(), book);
     const file = await this.app.vault.create(path, content);
-    new import_obsidian6.Notice(t("notice.created", { name: file.basename }));
+    new import_obsidian7.Notice(t("notice.created", { name: file.basename }));
     if (this.settings.openAfterCreate) {
       await this.app.workspace.getLeaf(false).openFile(file);
     }
@@ -1044,16 +1148,7 @@ var BookdropPlugin = class extends import_obsidian6.Plugin {
   /** 폴더 선택 창을 띄워 경로를 돌려준다. 취소하면 null */
   pickFolder() {
     return new Promise((resolve) => {
-      let chosen = null;
-      const modal = new FolderPickModal(this.app, this.settings.folder.trim(), (path) => {
-        chosen = path;
-      });
-      const origClose = modal.onClose.bind(modal);
-      modal.onClose = () => {
-        origClose();
-        window.setTimeout(() => resolve(chosen), 0);
-      };
-      modal.open();
+      new FolderPickModal(this.app, this.settings.folder.trim(), resolve).open();
     });
   }
   async fillFrontmatter(file, book) {
@@ -1078,12 +1173,12 @@ var BookdropPlugin = class extends import_obsidian6.Plugin {
         changed++;
       }
     });
-    new import_obsidian6.Notice(changed ? t("notice.filled", { count: changed }) : t("notice.nothingToFill"));
+    new import_obsidian7.Notice(changed ? t("notice.filled", { count: changed }) : t("notice.nothingToFill"));
   }
   async ensureFolder(folder) {
-    const path = (0, import_obsidian6.normalizePath)(folder);
+    const path = (0, import_obsidian7.normalizePath)(folder);
     const f = this.app.vault.getAbstractFileByPath(path);
-    if (f instanceof import_obsidian6.TFolder) return;
+    if (f instanceof import_obsidian7.TFolder) return;
     if (f) throw new Error(t("notice.notFolder", { path }));
     await this.app.vault.createFolder(path);
   }
@@ -1094,7 +1189,8 @@ var BookdropPlugin = class extends import_obsidian6.Plugin {
     return this.settings.insertTemplate || defaultInsertTemplate(getLang());
   }
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const saved = await this.loadData();
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, saved != null ? saved : {});
     if (isDefaultTemplate(this.settings.noteTemplate)) this.settings.noteTemplate = "";
     if (isDefaultTemplate(this.settings.insertTemplate)) this.settings.insertTemplate = "";
     setLanguage(this.settings.language);

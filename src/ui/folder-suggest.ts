@@ -42,15 +42,19 @@ export class FolderSuggest extends AbstractInputSuggest<TFolder> {
 	}
 }
 
-/** 노트를 만들 때마다 폴더를 고르는 창. 기본 폴더가 맨 위에 온다. */
+/**
+ * Asks for a folder each time a note is created. The default folder is listed first.
+ * onDone receives the chosen path, or null if the user cancelled.
+ */
 export class FolderPickModal extends FuzzySuggestModal<TFolder> {
 	private defaultPath: string;
-	private onPick: (path: string) => void;
+	private onDone: (path: string | null) => void;
+	private chosen: string | null = null;
 
-	constructor(app: App, defaultPath: string, onPick: (path: string) => void) {
+	constructor(app: App, defaultPath: string, onDone: (path: string | null) => void) {
 		super(app);
 		this.defaultPath = defaultPath;
-		this.onPick = onPick;
+		this.onDone = onDone;
 		this.setPlaceholder(t("folder.placeholder"));
 		this.setInstructions([
 			{ command: "↑↓", purpose: t("folder.move") },
@@ -73,6 +77,12 @@ export class FolderPickModal extends FuzzySuggestModal<TFolder> {
 	}
 
 	onChooseItem(folder: TFolder): void {
-		this.onPick(folder.isRoot() ? "" : folder.path);
+		this.chosen = folder.isRoot() ? "" : folder.path;
+	}
+
+	onClose(): void {
+		super.onClose();
+		// onChooseItem runs right after close, so wait a tick before reporting.
+		window.setTimeout(() => this.onDone(this.chosen), 0);
 	}
 }

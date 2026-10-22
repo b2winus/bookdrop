@@ -1,6 +1,6 @@
 import { requestUrl } from "obsidian";
 import { Book, SearchOptions } from "../types";
-import { stripHtml, toHttps, toIsbn } from "./utils";
+import { readJson, stripHtml, toHttps, toIsbn } from "./utils";
 import { t } from "../i18n";
 
 export interface GoogleVolume {
@@ -73,17 +73,14 @@ export async function searchGoogle(query: string, opts: SearchOptions): Promise<
 		throw: false,
 	});
 	if (res.status !== 200) {
-		let detail = "";
-		try {
-			detail = res.json?.error?.message ?? "";
-		} catch {
-			detail = res.text?.slice(0, 200) ?? "";
-		}
+		const body = readJson(res) as { error?: { message?: string } } | null;
+		const detail = body?.error?.message ?? res.text.slice(0, 200);
 		if (res.status === 429) {
 			throw new Error(t("err.google429"));
 		}
 		throw new Error(t("err.google", { status: res.status, detail }));
 	}
-	const items: GoogleVolume[] = res.json?.items ?? [];
+	const body = readJson(res) as { items?: GoogleVolume[] } | null;
+	const items = body?.items ?? [];
 	return items.map(mapGoogleVolume);
 }

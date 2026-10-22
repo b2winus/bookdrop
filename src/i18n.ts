@@ -1,4 +1,4 @@
-import * as obsidian from "obsidian";
+import { getLanguage } from "obsidian";
 
 export type Lang = "en" | "ko";
 export type LangSetting = "auto" | Lang;
@@ -227,25 +227,9 @@ const dictionaries: Record<Lang, Record<Key, string>> = { en, ko };
 
 let current: Lang = "en";
 
-/** Obsidian의 표시 언어. getLanguage()는 1.8.7부터 있으므로 이전 버전은 localStorage로 확인한다. */
+/** Obsidian's display language. */
 export function detectObsidianLanguage(): Lang {
-	let code = "";
-	const fn = (obsidian as unknown as { getLanguage?: () => string }).getLanguage;
-	if (typeof fn === "function") {
-		try {
-			code = fn();
-		} catch {
-			/* ignore */
-		}
-	}
-	if (!code) {
-		try {
-			code = window.localStorage.getItem("language") ?? "";
-		} catch {
-			/* ignore */
-		}
-	}
-	return code.toLowerCase().startsWith("ko") ? "ko" : "en";
+	return getLanguage().toLowerCase().startsWith("ko") ? "ko" : "en";
 }
 
 export function setLanguage(setting: LangSetting): void {

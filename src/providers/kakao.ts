@@ -1,6 +1,6 @@
 import { requestUrl } from "obsidian";
 import { Book, SearchOptions } from "../types";
-import { toIsbn, toHttps } from "./utils";
+import { readJson, toIsbn, toHttps } from "./utils";
 import { t } from "../i18n";
 
 /** 카카오 책 검색 API 응답의 문서 한 건 */
@@ -82,17 +82,14 @@ export async function searchKakao(query: string, opts: SearchOptions): Promise<B
 	});
 
 	if (res.status !== 200) {
-		let detail = "";
-		try {
-			detail = res.json?.message ?? "";
-		} catch {
-			detail = res.text?.slice(0, 200) ?? "";
-		}
+		const body = readJson(res) as { message?: string } | null;
+		const detail = body?.message ?? res.text.slice(0, 200);
 		if (res.status === 401) {
 			throw new Error(t("err.kakao401", { detail }));
 		}
 		throw new Error(t("err.kakao", { status: res.status, detail }));
 	}
-	const docs: KakaoDoc[] = res.json?.documents ?? [];
+	const body = readJson(res) as { documents?: KakaoDoc[] } | null;
+	const docs = body?.documents ?? [];
 	return docs.map(mapKakaoDoc);
 }
