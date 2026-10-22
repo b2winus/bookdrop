@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.4
+
+- Add a Buy Me a Coffee link (shown on the plugin page in Obsidian).
+
 ## 0.3.3
 
 - Re-release so the release tag points at the commit with the updated `manifest.json` and `package-lock.json`.

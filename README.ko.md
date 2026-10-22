@@ -74,6 +74,12 @@ npm run build   # 타입 검사 + 배포용 빌드
 3. community.obsidian.md에 Obsidian 계정으로 로그인하고 GitHub 계정을 연결합니다.
 4. **Add a plugin or theme**에서 이 저장소를 고릅니다. 심사는 자동이고 보통 몇 분 안에 결과가 나옵니다.
 
+## 후원
+
+Bookdrop이 도움이 되셨다면 커피 한 잔으로 응원해 주세요.
+
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/4h9fg59wsgd)
+
 ## License
 
 MIT

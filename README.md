@@ -130,6 +130,12 @@ npm run dev     # watch and rebuild main.js
 npm run build   # type-check and build for release
 ```
 
+## Support
+
+If Bookdrop saves you time, you can support its development:
+
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/4h9fg59wsgd)
+
 ## License
 
 [MIT](LICENSE)
