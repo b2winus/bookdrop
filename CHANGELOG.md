@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.3
+
+- Re-release so the release tag points at the commit with the updated `manifest.json` and `package-lock.json`.
+
 ## 0.3.2
 
 - Fix `package-lock.json` so dependencies install with a plain `npm ci`.
