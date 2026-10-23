@@ -1,5 +1,5 @@
 import { requestUrl } from "obsidian";
-import { Book, SearchOptions } from "../types";
+import { Book, SearchOptions, emptyBook } from "../types";
 import { readJson, toIsbn, toHttps } from "./utils";
 import { t } from "../i18n";
 
@@ -44,23 +44,19 @@ export function mapKakaoDoc(doc: KakaoDoc): Book {
 		else if (part.length === 10) isbn10 = part;
 	}
 	return {
+		...emptyBook("kakao"),
 		title: doc.title ?? "",
-		subtitle: "",
 		authors: doc.authors ?? [],
 		translators: doc.translators ?? [],
 		publisher: doc.publisher ?? "",
 		publishDate: doc.datetime ? doc.datetime.slice(0, 10) : "",
 		isbn10,
 		isbn13,
-		pageCount: null,
-		categories: [],
 		description: (doc.contents ?? "").trim(),
 		coverUrl: kakaoLargeCover(doc.thumbnail),
 		thumbnailUrl: toHttps(doc.thumbnail ?? ""),
 		link: doc.url ?? "",
 		price: typeof doc.price === "number" && doc.price > 0 ? doc.price : null,
-		language: "",
-		source: "kakao",
 	};
 }
 

@@ -100,3 +100,14 @@
 	flex: 1 1 100%;
 	align-items: flex-start;
 }
+
+.bookdrop-credit {
+	margin-top: var(--size-4-2);
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	text-align: right;
+}
+
+.bookdrop-credit:empty {
+	display: none;
+}

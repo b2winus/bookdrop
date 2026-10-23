@@ -1,8 +1,10 @@
 import { Editor, MarkdownView, Notice, Plugin, TFile, TFolder, normalizePath } from "obsidian";
-import { BookdropSettingTab, BookdropSettings, DEFAULT_SETTINGS } from "./settings";
+import { BookdropSettingTab, BookdropSettings, DEFAULT_SETTINGS, ENRICH_KEYS } from "./settings";
 import { BookSearchModal } from "./ui/search-modal";
 import { FolderPickModal } from "./ui/folder-suggest";
-import { Book, SearchOptions } from "./types";
+import { Book, EnricherId, SearchOptions } from "./types";
+import { ENRICHERS, startingProvider } from "./providers";
+import { enrichBook } from "./enrich";
 import { defaultInsertTemplate, defaultNoteTemplate, isDefaultTemplate, makeFileName, renderTemplate } from "./template";
 import { getLang, setLanguage, t } from "./i18n";
 
@@ -51,6 +53,8 @@ export default class BookdropPlugin extends Plugin {
 		const s = this.settings;
 		return {
 			kakaoApiKey: s.kakaoApiKey,
+			aladinTtbKey: s.aladinTtbKey,
+			nlApiKey: s.nlApiKey,
 			googleApiKey: s.googleApiKey,
 			googleLangRestrict: s.googleLangRestrict,
 			maxResults: s.maxResults,
@@ -58,14 +62,38 @@ export default class BookdropPlugin extends Plugin {
 	}
 
 	private openSearch(initialQuery: string, onChoose: (book: Book) => void | Promise<void>): void {
+		const options = this.searchOptions();
 		new BookSearchModal(this.app, {
 			initialQuery,
-			// 카카오 키가 없으면 Google로 시작
-			provider: this.settings.defaultProvider === "kakao" && !this.settings.kakaoApiKey ? "google" : this.settings.defaultProvider,
+			// Start with a source the user has a key for.
+			provider: startingProvider(this.settings.defaultProvider, options),
 			fallbackToOther: this.settings.fallbackToOther,
-			options: this.searchOptions(),
-			onChoose,
+			options,
+			onChoose: async (book) => onChoose(await this.completeBook(book)),
 		}).open();
+	}
+
+	/** Enrichment sources the user has turned on. */
+	private enabledEnrichers(): EnricherId[] {
+		if (!this.settings.enrich) return [];
+		return ENRICHERS.filter((e) => this.settings[ENRICH_KEYS[e]] === true);
+	}
+
+	/** Adds details from other sources (and Aladin's detail record) before the book is used. */
+	private async completeBook(book: Book): Promise<Book> {
+		const enabled = this.enabledEnrichers();
+		if (!enabled.length && book.source !== "aladin") return book;
+		// Only show a notice if the lookup is slow enough to notice.
+		let notice: Notice | null = null;
+		const timer = window.setTimeout(() => {
+			notice = new Notice(t("modal.enriching"), 0);
+		}, 400);
+		try {
+			return await enrichBook(book, enabled, this.searchOptions());
+		} finally {
+			window.clearTimeout(timer);
+			(notice as Notice | null)?.hide();
+		}
 	}
 
 	/** 프런트매터의 isbn → title → 파일 이름 순으로 검색어를 추정 */
@@ -117,6 +145,10 @@ export default class BookdropPlugin extends Plugin {
 			published: book.publishDate,
 			isbn: book.isbn13 || book.isbn10,
 			pages: book.pageCount,
+			original_title: book.originalTitle,
+			series: book.series,
+			kdc: book.kdc,
+			categories: book.categories,
 			cover: book.coverUrl,
 			link: book.link,
 		};

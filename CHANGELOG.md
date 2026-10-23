@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0
+
+- New search sources: **Aladin** (page count, table of contents, original title, series, categories for Korean books) and **Open Library** (international books, no key needed).
+- **Fill in missing details:** after you choose a book, other sources — including the National Library of Korea — are checked by ISBN and only empty fields are filled. Choose which sources to use in settings.
+- Smarter fallback: Korean queries try Korean sources next; other queries try international sources.
+- New template variables: `originalTitle`, `series`, `kdc`, `subjects`, `toc`, `sources`.
+- Templates: `{{#name}}…{{/name}}` keeps text only when the value exists; `{{name:list}}` makes a bullet list.
+- Default templates now include original title, series, KDC, categories, and a table of contents section.
+
 ## 0.3.4
 
 - Add a Buy Me a Coffee link (shown on the plugin page in Obsidian).

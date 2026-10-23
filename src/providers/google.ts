@@ -1,5 +1,5 @@
 import { requestUrl } from "obsidian";
-import { Book, SearchOptions } from "../types";
+import { Book, SearchOptions, emptyBook } from "../types";
 import { readJson, stripHtml, toHttps, toIsbn } from "./utils";
 import { t } from "../i18n";
 
@@ -38,10 +38,10 @@ export function mapGoogleVolume(item: GoogleVolume): Book {
 	}
 	const thumb = cleanGoogleImage(v.imageLinks?.thumbnail ?? v.imageLinks?.smallThumbnail);
 	return {
+		...emptyBook("google"),
 		title: v.title ?? "",
 		subtitle: v.subtitle ?? "",
 		authors: v.authors ?? [],
-		translators: [],
 		publisher: v.publisher ?? "",
 		publishDate: v.publishedDate ?? "",
 		isbn10,
@@ -54,7 +54,6 @@ export function mapGoogleVolume(item: GoogleVolume): Book {
 		link: v.canonicalVolumeLink ?? v.infoLink ?? "",
 		price: item.saleInfo?.listPrice?.amount ?? null,
 		language: v.language ?? "",
-		source: "google",
 	};
 }
 

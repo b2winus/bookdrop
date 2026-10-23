@@ -1,6 +1,6 @@
 import { App, ButtonComponent, DropdownComponent, Modal, Notice, TextComponent } from "obsidian";
 import { Book, ProviderId, SearchOptions } from "../types";
-import { PROVIDERS, otherProvider, providerLabel, searchBooks } from "../providers";
+import { PROVIDERS, fallbackOrder, providerLabel, searchBooks } from "../providers";
 import { t } from "../i18n";
 
 export interface SearchModalConfig {
@@ -22,6 +22,7 @@ export class BookSearchModal extends Modal {
 	private input!: TextComponent;
 	private statusEl!: HTMLElement;
 	private listEl!: HTMLElement;
+	private creditEl!: HTMLElement;
 	private results: Book[] = [];
 	private selected = -1;
 	private searching = false;
@@ -54,6 +55,7 @@ export class BookSearchModal extends Modal {
 
 		this.statusEl = contentEl.createDiv({ cls: "bookdrop-status" });
 		this.listEl = contentEl.createDiv({ cls: "bookdrop-results" });
+		this.creditEl = contentEl.createDiv({ cls: "bookdrop-credit" });
 
 		this.input.inputEl.addEventListener("keydown", (e) => this.onKey(e));
 		window.setTimeout(() => this.input.inputEl.focus(), 0);
@@ -90,21 +92,30 @@ export class BookSearchModal extends Modal {
 		this.results = [];
 		this.selected = -1;
 		this.listEl.empty();
+		this.creditEl.setText("");
 		this.statusEl.setText(t("modal.searching", { provider: providerLabel(this.provider) }));
 
 		try {
-			let used = this.provider;
+			let used: ProviderId = this.provider;
 			let books = await searchBooks(used, query, this.cfg.options);
 			if (!books.length && this.cfg.fallbackToOther) {
-				const alt = otherProvider(used);
-				// 대체 소스가 카카오인데 키가 없으면 건너뛴다
-				if (!(alt === "kakao" && !this.cfg.options.kakaoApiKey)) {
+				// Try the other usable sources in turn until one finds something.
+				for (const alt of fallbackOrder(this.provider, query, this.cfg.options)) {
 					this.statusEl.setText(t("modal.fallback", { provider: providerLabel(alt) }));
-					books = await searchBooks(alt, query, this.cfg.options);
-					if (books.length) used = alt;
+					try {
+						books = await searchBooks(alt, query, this.cfg.options);
+					} catch (err) {
+						console.warn(`[Bookdrop] ${alt} search failed:`, err);
+						continue;
+					}
+					if (books.length) {
+						used = alt;
+						break;
+					}
 				}
 			}
 			this.results = books;
+			this.creditEl.setText(books.length && used === "aladin" ? t("modal.aladinCredit") : "");
 			if (!books.length) {
 				this.statusEl.setText(t("modal.none"));
 			} else {

@@ -2,7 +2,7 @@
 
 [English](README.md) | 한국어
 
-카카오 책 검색과 Google Books에서 책 정보를 가져와 Obsidian 노트로 만드는 플러그인입니다.
+카카오 책 검색, 알라딘, Google Books, Open Library에서 책 정보를 가져와 Obsidian 노트로 만드는 플러그인입니다. 책을 고르면 국립중앙도서관 등 다른 소스에서 ISBN으로 빠진 정보(쪽수, 목차, KDC 분류 등)를 채워 넣습니다.
 
 ## 기능
 
@@ -13,7 +13,9 @@
 | **현재 노트 프런트매터에 책 정보 채우기** | 노트의 `isbn` → `title` → 파일 이름 순으로 검색어를 정해 속성(저자, 출판사, ISBN, 표지 등)을 채움 |
 
 - 제목, 저자, ISBN(하이픈 있어도 됨) 어느 것으로도 검색됩니다. ISBN이면 정확 검색으로 바뀝니다.
-- 검색 창에서 카카오와 Google을 바로 바꿀 수 있고, 결과가 없으면 다른 소스에서 자동으로 다시 찾습니다(설정에서 끌 수 있음).
+- 검색 창에서 카카오, 알라딘, Google Books, Open Library를 바로 바꿀 수 있습니다. 결과가 없으면 한글 검색어는 국내 소스를, 그 밖의 검색어는 해외 소스를 먼저 이어서 찾습니다(설정에서 끌 수 있음).
+- **정보 보강:** 책을 고른 뒤 다른 소스에서 ISBN으로 조회해 **비어 있는 항목만** 채웁니다. 이미 있는 값은 바꾸지 않고, 잘려 온 짧은 책 소개만 더 긴 소개로 바꿉니다.
+- 템플릿에서 `{{#toc}}…{{/toc}}`처럼 감싸면 그 정보가 있을 때만 해당 부분이 들어갑니다.
 - ↑↓로 고르고 Enter로 선택합니다. 한글 입력 중의 Enter는 무시합니다.
 - 카카오 결과는 작은 썸네일 대신 원본 크기 표지 주소를 찾아서 넣습니다.
 - 저장 폴더는 설정에서 보관소 폴더 목록을 보고 고를 수 있습니다. **노트 만들 때마다 폴더 고르기**를 켜면 책을 고른 뒤 매번 저장 폴더를 묻습니다.
@@ -34,6 +36,19 @@
 3. 플러그인 설정에 붙여 넣고 **연결 확인**을 누릅니다.
    - 401 오류가 나면 REST API 키가 아닌 다른 키(JavaScript 키 등)를 넣었는지 확인하세요.
 
+### 알라딘 (국내서 쪽수·목차)
+1. [알라딘 TTB](https://www.aladin.co.kr/ttb/wblog_manage.aspx)에서 TTB 키를 받습니다(무료, 알라딘 계정 필요).
+2. 플러그인 설정의 **알라딘 TTB 키**에 넣고 **연결 확인**을 누릅니다.
+   - 알라딘 결과를 보여 줄 때는 알라딘이 요구하는 출처 문구("도서 DB 제공: 알라딘 인터넷서점")가 검색 창 아래에 표시됩니다.
+
+### 국립중앙도서관 (선택, 정보 보강 전용)
+1. [ISBN 서지정보 API 안내](https://www.nl.go.kr/NL/contents/N31101030500.do)에서 인증키를 신청합니다(무료).
+2. 플러그인 설정의 **국립중앙도서관 인증키**에 넣고 **연결 확인**을 누릅니다.
+   - 검색 소스로는 쓰지 않고, 고른 책의 쪽수·KDC 분류·정가·목차를 채우는 데만 씁니다.
+
+### Open Library (외서, 키 필요 없음)
+따로 설정할 것이 없습니다.
+
 ### Google Books (외서에 강함, 키는 선택)
 키 없이도 동작합니다. 자주 쓰다 429(요청 한도) 오류가 나면 Google Cloud Console에서 **Books API**를 사용 설정하고 API 키를 만들어 넣으세요.
 
@@ -48,12 +63,28 @@
 | `{{authors:json}}` | `["기시미 이치로","고가 후미타케"]` | 프런트매터 목록 |
 | `{{authors:link}}` | `[[기시미 이치로]], [[고가 후미타케]]` | 본문 링크 |
 | `{{authors:linkjson}}` | `["[[기시미 이치로]]","[[고가 후미타케]]"]` | 프런트매터 링크 목록 |
+| `{{toc:list}}` | `- 머리말`<br>`- 첫 번째 밤…` | 글머리표 목록 (목록이나 여러 줄 텍스트) |
+| `{{#series}}시리즈: {{series}}{{/series}}` | 시리즈: … (값이 없으면 통째로 빠짐) | 값이 있을 때만 넣을 부분 |
 
-변수: `title` `subtitle` `author` `authors` `translator` `translators` `publisher` `publishDate` `publishYear` `isbn` `isbn10` `isbn13` `pageCount` `categories` `description` `coverUrl` `link` `price` `language` `source` `today`
+변수: `title` `subtitle` `originalTitle` `author` `authors` `translator` `translators` `publisher` `publishDate` `publishYear` `isbn` `isbn10` `isbn13` `pageCount` `series` `kdc` `categories` `subjects` `description` `toc` `coverUrl` `link` `price` `language` `source` `sources` `today`
 
 표지 주소가 없으면 `![...]()`처럼 깨진 이미지 줄은 자동으로 지웁니다.
 
-**소스별 차이:** 카카오는 역자·가격을 주지만 쪽수·분류는 없고, 책 소개가 짧게 잘려 옵니다. Google은 쪽수·분류·긴 소개를 주지만 국내서 정보가 빈약한 편입니다.
+**소스별 차이**
+
+| 항목 | 카카오 | 알라딘 | Google Books | Open Library | 국립중앙도서관* |
+|---|:-:|:-:|:-:|:-:|:-:|
+| 제목, 저자, 출판사, 출간일, ISBN, 표지 | ✓ | ✓ | ✓ | ✓ | ✓ |
+| 역자 | ✓ | ✓ | — | — | ✓ |
+| 원제, 시리즈 | — | ✓ | — | — | 시리즈 |
+| 쪽수 | — | ✓ | ✓ | ✓ | ✓ |
+| 목차 | — | ✓ | — | — | 일부 |
+| 분류·주제 | — | 분류 | 분류 | 주제어 | KDC |
+| 책 소개 | 짧게 잘림 | 전체 | 전체 | — | 일부 |
+
+\* 검색에는 쓰지 않고 정보 보강에만 씁니다.
+
+**네트워크 사용:** 검색어나 고른 책의 ISBN을 사용하는 소스에만 보냅니다(`dapi.kakao.com`, `www.aladin.co.kr`, `www.googleapis.com`, `openlibrary.org`, `www.nl.go.kr`). 각 소스는 **정보 보강** 설정에서 끌 수 있습니다. API 키는 보관소 안의 플러그인 `data.json`에만 저장되고, 사용 기록은 어디에도 보내지 않습니다.
 
 ## 개발
 

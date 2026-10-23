@@ -10,8 +10,9 @@ import {
 	requireApiVersion,
 } from "obsidian";
 import type BookdropPlugin from "./main";
-import { ProviderId } from "./types";
-import { PROVIDERS, providerLabel, searchBooks } from "./providers";
+import { EnricherId, ProviderId } from "./types";
+import { ENRICHERS, PROVIDERS, providerLabel, searchBooks } from "./providers";
+import { lookupNl } from "./providers/nl";
 import { FolderSuggest } from "./ui/folder-suggest";
 import { DEFAULT_FILENAME_TEMPLATE, TEMPLATE_VARIABLES, defaultInsertTemplate, defaultNoteTemplate } from "./template";
 import { Key, LangSetting, getLang, t } from "./i18n";
@@ -21,6 +22,8 @@ export interface BookdropSettings {
 	defaultProvider: ProviderId;
 	fallbackToOther: boolean;
 	kakaoApiKey: string;
+	aladinTtbKey: string;
+	nlApiKey: string;
 	googleApiKey: string;
 	googleLangRestrict: string;
 	maxResults: number;
@@ -33,13 +36,30 @@ export interface BookdropSettings {
 	insertTemplate: string;
 	openAfterCreate: boolean;
 	overwriteFrontmatter: boolean;
+	enrich: boolean;
+	enrichAladin: boolean;
+	enrichNl: boolean;
+	enrichKakao: boolean;
+	enrichGoogle: boolean;
+	enrichOpenlibrary: boolean;
 }
+
+/** Settings key for each enrichment source toggle. */
+export const ENRICH_KEYS: Record<EnricherId, keyof BookdropSettings> = {
+	aladin: "enrichAladin",
+	nl: "enrichNl",
+	kakao: "enrichKakao",
+	google: "enrichGoogle",
+	openlibrary: "enrichOpenlibrary",
+};
 
 export const DEFAULT_SETTINGS: BookdropSettings = {
 	language: "auto",
 	defaultProvider: "kakao",
 	fallbackToOther: true,
 	kakaoApiKey: "",
+	aladinTtbKey: "",
+	nlApiKey: "",
 	googleApiKey: "",
 	googleLangRestrict: "",
 	maxResults: 20,
@@ -50,6 +70,12 @@ export const DEFAULT_SETTINGS: BookdropSettings = {
 	insertTemplate: "",
 	openAfterCreate: true,
 	overwriteFrontmatter: false,
+	enrich: true,
+	enrichAladin: true,
+	enrichNl: true,
+	enrichKakao: true,
+	enrichGoogle: true,
+	enrichOpenlibrary: true,
 };
 
 type SettingsKey = keyof BookdropSettings;
@@ -80,7 +106,7 @@ export class BookdropSettingTab extends PluginSettingTab {
 		if (typeof v === "string") {
 			if (key === "folder") v = v.trim().replace(/^\/+|\/+$/g, "");
 			else if (key === "fileNameTemplate") v = v.trim() ? v : DEFAULT_FILENAME_TEMPLATE;
-			else if (key === "kakaoApiKey" || key === "googleApiKey" || key === "googleLangRestrict") v = v.trim();
+			else if (key.endsWith("ApiKey") || key.endsWith("TtbKey") || key === "googleLangRestrict") v = v.trim();
 		}
 		s[key] = v;
 		await this.plugin.saveSettings();
@@ -147,7 +173,23 @@ export class BookdropSettingTab extends PluginSettingTab {
 						f.appendText(t("set.kakaoKeyDesc"));
 						f.createEl("a", { text: t("set.kakaoKeyLink"), href: "https://developers.kakao.com/console/app" });
 					}),
-					render: (setting: Setting) => this.renderKakaoKey(setting),
+					render: (setting: Setting) => this.renderKeyWithTest(setting, "kakaoApiKey", t("set.kakaoKeyPlaceholder"), () => this.testSearch("kakao")),
+				},
+				{
+					name: t("set.aladinKey"),
+					desc: createFragment((f) => {
+						f.appendText(t("set.aladinKeyDesc"));
+						f.createEl("a", { text: t("set.aladinKeyLink"), href: "https://www.aladin.co.kr/ttb/wblog_manage.aspx" });
+					}),
+					render: (setting: Setting) => this.renderKeyWithTest(setting, "aladinTtbKey", "TTBKey", () => this.testSearch("aladin")),
+				},
+				{
+					name: t("set.nlKey"),
+					desc: createFragment((f) => {
+						f.appendText(t("set.nlKeyDesc"));
+						f.createEl("a", { text: t("set.nlKeyLink"), href: "https://www.nl.go.kr/NL/contents/N31101030500.do" });
+					}),
+					render: (setting: Setting) => this.renderKeyWithTest(setting, "nlApiKey", "cert_key", () => this.testNl()),
 				},
 				{
 					name: t("set.googleKey"),
@@ -159,6 +201,23 @@ export class BookdropSettingTab extends PluginSettingTab {
 					desc: t("set.googleLangDesc"),
 					control: { type: "text", key: "googleLangRestrict", placeholder: t("set.googleLangPlaceholder") },
 				},
+			],
+		};
+
+		const enrich: SettingDefinitionGroup = {
+			type: "group",
+			heading: t("set.enrichGroup"),
+			items: [
+				{
+					name: t("set.enrich"),
+					desc: t("set.enrichDesc"),
+					control: { type: "toggle", key: "enrich" },
+				},
+				...ENRICHERS.map((p) => ({
+					name: t("set.enrichFrom", { provider: providerLabel(p) }),
+					desc: t("set.enrichFromDesc"),
+					control: { type: "toggle" as const, key: ENRICH_KEYS[p] },
+				})),
 			],
 		};
 
@@ -230,12 +289,12 @@ export class BookdropSettingTab extends PluginSettingTab {
 			],
 		};
 
-		return [general, search, keys, newNote, currentNote, variables];
+		return [general, search, keys, enrich, newNote, currentNote, variables];
 	}
 
 	// ── Custom rows ─────────────────────────
 
-	private renderPassword(setting: Setting, key: "kakaoApiKey" | "googleApiKey", placeholder: string): void {
+	private renderPassword(setting: Setting, key: "kakaoApiKey" | "aladinTtbKey" | "nlApiKey" | "googleApiKey", placeholder: string): void {
 		setting.addText((tx) => {
 			tx.inputEl.type = "password";
 			tx.setPlaceholder(placeholder)
@@ -246,22 +305,29 @@ export class BookdropSettingTab extends PluginSettingTab {
 		});
 	}
 
-	private renderKakaoKey(setting: Setting): void {
-		this.renderPassword(setting, "kakaoApiKey", t("set.kakaoKeyPlaceholder"));
+	private renderKeyWithTest(
+		setting: Setting,
+		key: "kakaoApiKey" | "aladinTtbKey" | "nlApiKey",
+		placeholder: string,
+		test: () => Promise<void>,
+	): void {
+		this.renderPassword(setting, key, placeholder);
 		setting.addButton((b) =>
 			b.setButtonText(t("set.testConnection")).onClick(() => {
-				void this.testKakao();
+				void test().catch((e: unknown) => new Notice(e instanceof Error ? e.message : String(e)));
 			}),
 		);
 	}
 
-	private async testKakao(): Promise<void> {
-		try {
-			const r = await searchBooks("kakao", "어린 왕자", this.plugin.searchOptions());
-			new Notice(t("notice.kakaoOk", { count: r.length }));
-		} catch (e) {
-			new Notice(e instanceof Error ? e.message : String(e));
-		}
+	private async testSearch(provider: ProviderId): Promise<void> {
+		const r = await searchBooks(provider, "어린 왕자", this.plugin.searchOptions());
+		new Notice(t("notice.testOk", { provider: providerLabel(provider), count: r.length }));
+	}
+
+	private async testNl(): Promise<void> {
+		// A well-known ISBN ("미움받을 용기"); success means the key was accepted.
+		await lookupNl("9788996991342", this.plugin.searchOptions());
+		new Notice(t("notice.testOkNl"));
 	}
 
 	/**

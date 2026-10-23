@@ -1,9 +1,9 @@
 {
   "id": "bookdrop",
   "name": "Bookdrop",
-  "version": "0.3.4",
+  "version": "0.4.0",
   "minAppVersion": "1.8.7",
-  "description": "Drop a book into your vault: search Kakao Book Search or Google Books by title, author, or ISBN, then create a templated book note or fill the current note.",
+  "description": "Drop a book into your vault: search Kakao, Aladin, Google Books, or Open Library, fill in missing details by ISBN, and create a templated book note.",
   "author": "Paul Hong",
   "fundingUrl": "https://buymeacoffee.com/4h9fg59wsgd",
   "isDesktopOnly": false
