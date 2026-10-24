@@ -1,19 +1,19 @@
 {
-  "name": "versedrop",
-  "version": "0.6.1",
-  "description": "Obsidian plugin: insert Bible passages in Korean and English",
+  "name": "bookdrop",
+  "version": "0.4.0",
+  "description": "카카오 책 검색 / Google Books로 책 정보를 가져와 노트를 만드는 Obsidian 플러그인",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
   },
-  "keywords": [],
   "author": "Paul Hong",
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^26.6.5",
-    "esbuild": "^0.28.2",
-    "obsidian": "^1.14.4",
-    "typescript": "^7.0.2"
+    "@types/node": "^20.11.0",
+    "esbuild": "0.21.5",
+    "obsidian": "1.14.4",
+    "tslib": "^2.6.2",
+    "typescript": "^5.4.5"
   }
 }

@@ -1,11 +1,10 @@
 {
-	"id": "versedrop",
-	"name": "Versedrop",
-	"version": "0.6.1",
-	"minAppVersion": "1.13.0",
-	"description": "Search a Bible reference and insert the passage in Korean, English, Chinese, Japanese, Greek or Hebrew, with copyright notices.",
-	"author": "Paul Hong",
-	"authorUrl": "https://github.com/b2winus",
-	"isDesktopOnly": false,
-	"fundingUrl": "https://buymeacoffee.com/4h9fg59wsgd"
+  "id": "bookdrop",
+  "name": "Bookdrop",
+  "version": "0.4.0",
+  "minAppVersion": "1.8.7",
+  "description": "Drop a book into your vault: search Kakao, Aladin, Google Books, or Open Library, fill in missing details by ISBN, and create a templated book note.",
+  "author": "Paul Hong",
+  "fundingUrl": "https://buymeacoffee.com/4h9fg59wsgd",
+  "isDesktopOnly": false
 }
