@@ -114,6 +114,7 @@ status: {{status:json}}
 started:
 finished:
 rating:
+stars:
 progress:
 tags:
   - book
@@ -167,7 +168,8 @@ Run the reading commands from the command palette (or give them hotkeys) while a
 | `status` | *Change reading status*, *Start reading*, *Mark as finished*, *Update reading progress* | `reading` |
 | `started` | Starting a book (only if empty) | `2026-10-26` |
 | `finished` | Finishing a book | `2026-11-20` |
-| `rating` | *Rate this book* | `4.5` |
+| `rating` | *Rate this book* — a number, for sorting and filters | `4.5` |
+| `stars` | *Rate this book* — the same rating as stars, for reading | `★★★★½` |
 | `progress` | *Update reading progress* (set to the page count when you finish) | `120` |
 
 - Status words can be changed under **Settings → Bookdrop → Reading log**. Both the English and Korean defaults are always recognised.

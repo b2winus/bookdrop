@@ -1,7 +1,7 @@
 {
   "id": "bookdrop",
   "name": "Bookdrop",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "minAppVersion": "1.8.7",
   "description": "Drop a book into your vault: search Kakao, Aladin, Google Books or Open Library, create a templated book note, and keep a reading log with ratings, quotes and a bookshelf.",
   "author": "Paul Hong",

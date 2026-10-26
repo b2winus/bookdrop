@@ -15,6 +15,8 @@ export const PROP = {
 	started: "started",
 	finished: "finished",
 	rating: "rating",
+	/** Star text shown next to the numeric rating, e.g. ★★★★½ */
+	stars: "stars",
 	progress: "progress",
 	pages: "pages",
 } as const;
@@ -112,9 +114,16 @@ export function applyProgress(fm: Frontmatter, labels: StatusLabels, page: numbe
 	return current;
 }
 
+/** Stores the rating as a number (for sorting and filters) and as stars (for reading). */
 export function applyRating(fm: Frontmatter, rating: number | null): void {
-	if (rating === null) delete fm[PROP.rating];
-	else fm[PROP.rating] = Math.min(5, Math.max(1, Math.round(rating * 2) / 2));
+	if (rating === null) {
+		delete fm[PROP.rating];
+		delete fm[PROP.stars];
+		return;
+	}
+	const value = Math.min(5, Math.max(1, Math.round(rating * 2) / 2));
+	fm[PROP.rating] = value;
+	fm[PROP.stars] = stars(value);
 }
 
 export function readStatus(app: App, file: TFile, labels: StatusLabels): ReadingStatus | null {

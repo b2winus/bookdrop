@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.2
+
+- Ratings are also written as stars: *Rate this book* now sets `stars` (e.g. `★★★★½`) next to the numeric `rating`, and the bookshelf view shows the stars. New notes include an empty `stars` property.
+
 ## 0.5.1
 
 - Build configuration: declare the ES2019/ES2020 library features the code uses (`Promise.allSettled`, `String.trimEnd`), so type checks no longer report them as unresolved. No change in behaviour.

@@ -53,13 +53,13 @@ export function bookshelfBase(folder: string, labels: StatusLabels): string {
 		`  or:`,
 		...scope,
 		`views:`,
-		cards(names.all, ["file.name", "author", PROP.status, PROP.rating], []),
+		cards(names.all, ["file.name", "author", PROP.status, PROP.stars], []),
 		cards(names.reading, ["file.name", "author", PROP.progress, PROP.pages, PROP.started], [statusIs(labels, "reading")]),
-		cards(names.thisYear, ["file.name", "author", PROP.finished, PROP.rating], [
+		cards(names.thisYear, ["file.name", "author", PROP.finished, PROP.stars], [
 			statusIs(labels, "finished"),
 			yamlQuote(`date(${PROP.finished}).year == today().year`),
 		]),
-		table(names.finished, ["file.name", "author", "publisher", PROP.started, PROP.finished, PROP.rating], [statusIs(labels, "finished")]),
+		table(names.finished, ["file.name", "author", "publisher", PROP.started, PROP.finished, PROP.stars], [statusIs(labels, "finished")]),
 		table(names.toRead, ["file.name", "author", "publisher", PROP.pages], [statusIs(labels, "toRead")]),
 		"",
 	].join("\n");

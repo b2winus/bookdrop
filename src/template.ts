@@ -231,6 +231,7 @@ status: {{status:json}}
 started:
 finished:
 rating:
+stars:
 progress:
 tags:
   - book
@@ -282,6 +283,7 @@ status: {{status:json}}
 started:
 finished:
 rating:
+stars:
 progress:
 tags:
   - book
