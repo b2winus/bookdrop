@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.1
+
+- Build configuration: declare the ES2019/ES2020 library features the code uses (`Promise.allSettled`, `String.trimEnd`), so type checks no longer report them as unresolved. No change in behaviour.
+
 ## 0.5.0
 
 - **Reading log:** commands to change the reading status, start or finish a book (with today's date), rate it (1–5, half stars), record pages read, and add quotes with page numbers. Stored as note properties: `status`, `started`, `finished`, `rating`, `progress`.
