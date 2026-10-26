@@ -1,7 +1,7 @@
 /** Sources that can search for books. */
 export type ProviderId = "kakao" | "aladin" | "google" | "openlibrary";
-/** Sources that can fill in missing details by ISBN. "nl" = National Library of Korea. */
-export type EnricherId = ProviderId | "nl";
+/** Sources that can fill in missing details by ISBN. */
+export type EnricherId = ProviderId;
 
 export interface Book {
 	title: string;
@@ -41,7 +41,6 @@ export interface SearchOptions {
 	aladinTtbKey: string;
 	googleApiKey: string;
 	googleLangRestrict: string;
-	nlApiKey: string;
 	maxResults: number;
 }
 

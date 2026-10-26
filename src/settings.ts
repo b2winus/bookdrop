@@ -12,10 +12,15 @@ import {
 import type BookdropPlugin from "./main";
 import { EnricherId, ProviderId } from "./types";
 import { ENRICHERS, PROVIDERS, providerLabel, searchBooks } from "./providers";
-import { lookupNl } from "./providers/nl";
 import { FolderSuggest } from "./ui/folder-suggest";
 import { DEFAULT_FILENAME_TEMPLATE, TEMPLATE_VARIABLES, defaultInsertTemplate, defaultNoteTemplate } from "./template";
 import { Key, LangSetting, getLang, t } from "./i18n";
+import { ReadingStatus, defaultStatusLabel } from "./reading";
+
+/** Default heading for quotes in the interface language. */
+export function defaultQuotesHeading(): string {
+	return getLang() === "ko" ? "인용" : "Quotes";
+}
 
 export interface BookdropSettings {
 	language: LangSetting;
@@ -23,7 +28,6 @@ export interface BookdropSettings {
 	fallbackToOther: boolean;
 	kakaoApiKey: string;
 	aladinTtbKey: string;
-	nlApiKey: string;
 	googleApiKey: string;
 	googleLangRestrict: string;
 	maxResults: number;
@@ -38,16 +42,23 @@ export interface BookdropSettings {
 	overwriteFrontmatter: boolean;
 	enrich: boolean;
 	enrichAladin: boolean;
-	enrichNl: boolean;
 	enrichKakao: boolean;
 	enrichGoogle: boolean;
 	enrichOpenlibrary: boolean;
+	/** Reading status words; empty = the default for the interface language */
+	statusToRead: string;
+	statusReading: string;
+	statusFinished: string;
+	statusStopped: string;
+	/** Heading quotes go under; empty = "인용" / "Quotes" */
+	quotesHeading: string;
+	/** Bookshelf file name last used (without .base); empty = "내 책장" / "Bookshelf" */
+	bookshelfName: string;
 }
 
 /** Settings key for each enrichment source toggle. */
 export const ENRICH_KEYS: Record<EnricherId, keyof BookdropSettings> = {
 	aladin: "enrichAladin",
-	nl: "enrichNl",
 	kakao: "enrichKakao",
 	google: "enrichGoogle",
 	openlibrary: "enrichOpenlibrary",
@@ -59,7 +70,6 @@ export const DEFAULT_SETTINGS: BookdropSettings = {
 	fallbackToOther: true,
 	kakaoApiKey: "",
 	aladinTtbKey: "",
-	nlApiKey: "",
 	googleApiKey: "",
 	googleLangRestrict: "",
 	maxResults: 20,
@@ -72,10 +82,15 @@ export const DEFAULT_SETTINGS: BookdropSettings = {
 	overwriteFrontmatter: false,
 	enrich: true,
 	enrichAladin: true,
-	enrichNl: true,
 	enrichKakao: true,
 	enrichGoogle: true,
 	enrichOpenlibrary: true,
+	statusToRead: "",
+	statusReading: "",
+	statusFinished: "",
+	statusStopped: "",
+	quotesHeading: "",
+	bookshelfName: "",
 };
 
 type SettingsKey = keyof BookdropSettings;
@@ -184,14 +199,6 @@ export class BookdropSettingTab extends PluginSettingTab {
 					render: (setting: Setting) => this.renderKeyWithTest(setting, "aladinTtbKey", "TTBKey", () => this.testSearch("aladin")),
 				},
 				{
-					name: t("set.nlKey"),
-					desc: createFragment((f) => {
-						f.appendText(t("set.nlKeyDesc"));
-						f.createEl("a", { text: t("set.nlKeyLink"), href: "https://www.nl.go.kr/NL/contents/N31101030500.do" });
-					}),
-					render: (setting: Setting) => this.renderKeyWithTest(setting, "nlApiKey", "cert_key", () => this.testNl()),
-				},
-				{
 					name: t("set.googleKey"),
 					desc: t("set.googleKeyDesc"),
 					render: (setting: Setting) => this.renderPassword(setting, "googleApiKey", t("set.optional")),
@@ -289,12 +296,44 @@ export class BookdropSettingTab extends PluginSettingTab {
 			],
 		};
 
-		return [general, search, keys, enrich, newNote, currentNote, variables];
+		const statusRow = (key: "statusToRead" | "statusReading" | "statusFinished" | "statusStopped", status: ReadingStatus) => ({
+			name: t(`set.${key}` as Key),
+			desc: t("set.statusDesc"),
+			control: { type: "text" as const, key, placeholder: defaultStatusLabel(status) },
+		});
+		const reading: SettingDefinitionGroup = {
+			type: "group",
+			heading: t("set.readingGroup"),
+			items: [
+				statusRow("statusToRead", "toRead"),
+				statusRow("statusReading", "reading"),
+				statusRow("statusFinished", "finished"),
+				statusRow("statusStopped", "stopped"),
+				{
+					name: t("set.quotesHeading"),
+					desc: t("set.quotesHeadingDesc"),
+					control: { type: "text", key: "quotesHeading", placeholder: defaultQuotesHeading() },
+				},
+				{
+					name: t("set.bookshelf"),
+					desc: t("set.bookshelfDesc"),
+					render: (setting: Setting) => {
+						setting.addButton((b) =>
+							b.setButtonText(t("set.bookshelfButton")).onClick(() => {
+								void this.plugin.createBookshelf();
+							}),
+						);
+					},
+				},
+			],
+		};
+
+		return [general, search, keys, enrich, reading, newNote, currentNote, variables];
 	}
 
 	// ── Custom rows ─────────────────────────
 
-	private renderPassword(setting: Setting, key: "kakaoApiKey" | "aladinTtbKey" | "nlApiKey" | "googleApiKey", placeholder: string): void {
+	private renderPassword(setting: Setting, key: "kakaoApiKey" | "aladinTtbKey" | "googleApiKey", placeholder: string): void {
 		setting.addText((tx) => {
 			tx.inputEl.type = "password";
 			tx.setPlaceholder(placeholder)
@@ -307,7 +346,7 @@ export class BookdropSettingTab extends PluginSettingTab {
 
 	private renderKeyWithTest(
 		setting: Setting,
-		key: "kakaoApiKey" | "aladinTtbKey" | "nlApiKey",
+		key: "kakaoApiKey" | "aladinTtbKey",
 		placeholder: string,
 		test: () => Promise<void>,
 	): void {
@@ -322,12 +361,6 @@ export class BookdropSettingTab extends PluginSettingTab {
 	private async testSearch(provider: ProviderId): Promise<void> {
 		const r = await searchBooks(provider, "어린 왕자", this.plugin.searchOptions());
 		new Notice(t("notice.testOk", { provider: providerLabel(provider), count: r.length }));
-	}
-
-	private async testNl(): Promise<void> {
-		// A well-known ISBN ("미움받을 용기"); success means the key was accepted.
-		await lookupNl("9788996991342", this.plugin.searchOptions());
-		new Notice(t("notice.testOkNl"));
 	}
 
 	/**

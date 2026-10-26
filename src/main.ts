@@ -1,11 +1,14 @@
-import { Editor, MarkdownView, Notice, Plugin, TFile, TFolder, normalizePath } from "obsidian";
-import { BookdropSettingTab, BookdropSettings, DEFAULT_SETTINGS, ENRICH_KEYS } from "./settings";
+import { Editor, MarkdownView, Notice, Plugin, TFile, TFolder, normalizePath, requireApiVersion } from "obsidian";
+import { BookdropSettingTab, BookdropSettings, DEFAULT_SETTINGS, ENRICH_KEYS, defaultQuotesHeading } from "./settings";
+import { PROP, ReadingStatus, applyProgress, applyRating, applyStatus, insertQuote, readNumber, readStatus, stars, statusLabel } from "./reading";
+import { bookshelfBase } from "./bookshelf";
+import { NameModal, ProgressModal, QuoteModal, RatingModal, StatusPickModal } from "./ui/reading-modals";
 import { BookSearchModal } from "./ui/search-modal";
 import { FolderPickModal } from "./ui/folder-suggest";
 import { Book, EnricherId, SearchOptions } from "./types";
 import { ENRICHERS, startingProvider } from "./providers";
 import { enrichBook } from "./enrich";
-import { defaultInsertTemplate, defaultNoteTemplate, isDefaultTemplate, makeFileName, renderTemplate } from "./template";
+import { defaultInsertTemplate, defaultNoteTemplate, isDefaultTemplate, makeFileName, renderTemplate, sanitizeFileName } from "./template";
 import { getLang, setLanguage, t } from "./i18n";
 
 export default class BookdropPlugin extends Plugin {
@@ -28,7 +31,7 @@ export default class BookdropPlugin extends Plugin {
 			editorCallback: (editor: Editor) => {
 				const selection = editor.getSelection().trim();
 				this.openSearch(selection, (book) => {
-					editor.replaceSelection(renderTemplate(this.insertTemplate(), book));
+					editor.replaceSelection(renderTemplate(this.insertTemplate(), book, { status: statusLabel(this.settings, "toRead") }));
 				});
 			},
 		});
@@ -46,7 +49,107 @@ export default class BookdropPlugin extends Plugin {
 			},
 		});
 
+		this.addReadingCommands();
 		this.addSettingTab(new BookdropSettingTab(this.app, this));
+	}
+
+	// ── Reading log ─────────────────────────
+
+	/** Commands that work on the note in the active editor. */
+	private addReadingCommands(): void {
+		const onNote = (id: string, name: string, run: (file: TFile, editor: Editor) => void) =>
+			this.addCommand({
+				id,
+				name,
+				editorCheckCallback: (checking, editor, ctx) => {
+					const file = ctx.file;
+					if (!file) return false;
+					if (!checking) run(file, editor);
+					return true;
+				},
+			});
+
+		onNote("reading-status", t("cmd.status"), (file) => {
+			new StatusPickModal(this.app, (s) => statusLabel(this.settings, s), readStatus(this.app, file, this.settings), (s) => void this.setStatus(file, s)).open();
+		});
+		onNote("start-reading", t("cmd.startReading"), (file) => void this.setStatus(file, "reading"));
+		onNote("finish-reading", t("cmd.finishReading"), (file) => void this.setStatus(file, "finished"));
+		onNote("rate-book", t("cmd.rate"), (file) => {
+			new RatingModal(this.app, readNumber(this.app, file, PROP.rating), (r) => void this.setRating(file, r)).open();
+		});
+		onNote("reading-progress", t("cmd.progress"), (file) => {
+			const pages = readNumber(this.app, file, PROP.pages);
+			new ProgressModal(this.app, readNumber(this.app, file, PROP.progress), pages, (p) => void this.setProgress(file, p)).open();
+		});
+		onNote("add-quote", t("cmd.quote"), (file, editor) => {
+			new QuoteModal(this.app, editor.getSelection(), (quote, page) => void this.addQuote(file, quote, page)).open();
+		});
+
+		this.addCommand({
+			id: "create-bookshelf",
+			name: t("cmd.bookshelf"),
+			callback: () => void this.createBookshelf(),
+		});
+	}
+
+	async setStatus(file: TFile, status: ReadingStatus): Promise<void> {
+		await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => applyStatus(fm, this.settings, status));
+		new Notice(t("notice.status", { status: statusLabel(this.settings, status) }));
+	}
+
+	async setRating(file: TFile, rating: number | null): Promise<void> {
+		await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => applyRating(fm, rating));
+		new Notice(rating === null ? t("notice.unrated") : t("notice.rated", { stars: stars(rating) }));
+	}
+
+	async setProgress(file: TFile, page: number): Promise<void> {
+		let result: ReadingStatus | null = null;
+		await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+			result = applyProgress(fm, this.settings, page);
+		});
+		new Notice(
+			result === "finished"
+				? t("notice.progressFinished", { status: statusLabel(this.settings, "finished") })
+				: t("notice.progress", { page }),
+		);
+	}
+
+	async addQuote(file: TFile, quote: string, page: string): Promise<void> {
+		const heading = this.settings.quotesHeading.trim() || defaultQuotesHeading();
+		await this.app.vault.process(file, (content) => insertQuote(content, heading, quote, page));
+		new Notice(t("notice.quoteAdded"));
+	}
+
+	/** Asks for a name, then creates the bookshelf .base file in the book folder (or opens it if it exists). */
+	async createBookshelf(): Promise<void> {
+		if (!requireApiVersion("1.9.0")) {
+			new Notice(t("notice.basesOld"));
+			return;
+		}
+		const initial = this.settings.bookshelfName.trim() || (getLang() === "ko" ? "내 책장" : "Bookshelf");
+		new NameModal(this.app, t("shelf.title"), t("shelf.name"), initial, t("set.bookshelfButton"), (name) => {
+			void this.writeBookshelf(name).catch((e: unknown) => new Notice(e instanceof Error ? e.message : String(e)));
+		}).open();
+	}
+
+	private async writeBookshelf(rawName: string): Promise<void> {
+		const base = sanitizeFileName(rawName.replace(/\.base$/i, ""));
+		if (!base) return;
+		this.settings.bookshelfName = base;
+		await this.saveSettings();
+		const folder = this.settings.folder.trim();
+		if (folder) await this.ensureFolder(folder);
+		const name = `${base}.base`;
+		const path = normalizePath(folder ? `${folder}/${name}` : name);
+		const existing = this.app.vault.getAbstractFileByPath(path);
+		if (existing instanceof TFile) {
+			new Notice(t("notice.bookshelfExists", { path }));
+			await this.app.workspace.getLeaf(false).openFile(existing);
+			return;
+		}
+		const file = await this.app.vault.create(path, bookshelfBase(folder, this.settings));
+		new Notice(t("notice.bookshelfCreated", { path }));
+		await this.app.workspace.getLeaf(false).openFile(file);
 	}
 
 	searchOptions(): SearchOptions {
@@ -54,7 +157,6 @@ export default class BookdropPlugin extends Plugin {
 		return {
 			kakaoApiKey: s.kakaoApiKey,
 			aladinTtbKey: s.aladinTtbKey,
-			nlApiKey: s.nlApiKey,
 			googleApiKey: s.googleApiKey,
 			googleLangRestrict: s.googleLangRestrict,
 			maxResults: s.maxResults,
@@ -121,7 +223,7 @@ export default class BookdropPlugin extends Plugin {
 			return;
 		}
 
-		const content = renderTemplate(this.noteTemplate(), book);
+		const content = renderTemplate(this.noteTemplate(), book, { status: statusLabel(this.settings, "toRead") });
 		const file = await this.app.vault.create(path, content);
 		new Notice(t("notice.created", { name: file.basename }));
 		if (this.settings.openAfterCreate) {
@@ -147,7 +249,6 @@ export default class BookdropPlugin extends Plugin {
 			pages: book.pageCount,
 			original_title: book.originalTitle,
 			series: book.series,
-			kdc: book.kdc,
 			categories: book.categories,
 			cover: book.coverUrl,
 			link: book.link,
@@ -184,6 +285,10 @@ export default class BookdropPlugin extends Plugin {
 	async loadSettings(): Promise<void> {
 		const saved = (await this.loadData()) as Partial<BookdropSettings> | null;
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, saved ?? {});
+		// The National Library of Korea source was removed in 0.5.0.
+		const stale = this.settings as unknown as Record<string, unknown>;
+		delete stale["nlApiKey"];
+		delete stale["enrichNl"];
 		// 이전 버전이 저장한 기본 템플릿은 비워서, 언어에 맞는 기본값을 따르게 한다
 		if (isDefaultTemplate(this.settings.noteTemplate)) this.settings.noteTemplate = "";
 		if (isDefaultTemplate(this.settings.insertTemplate)) this.settings.insertTemplate = "";

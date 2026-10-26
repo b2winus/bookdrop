@@ -6,8 +6,8 @@ type Value = string | number | string[] | null;
 /** 템플릿에서 쓸 수 있는 변수 이름 (설명은 i18n의 var.* 키) */
 export const TEMPLATE_VARIABLES = [
 	"title", "subtitle", "originalTitle", "author", "authors", "translator", "translators", "publisher",
-	"publishDate", "publishYear", "isbn", "isbn10", "isbn13", "pageCount", "series", "kdc", "categories",
-	"subjects", "description", "toc", "coverUrl", "link", "price", "language", "source", "sources", "today",
+	"publishDate", "publishYear", "isbn", "isbn10", "isbn13", "pageCount", "series", "categories",
+	"subjects", "description", "toc", "coverUrl", "link", "price", "language", "source", "sources", "status", "today",
 ] as const;
 
 function todayString(): string {
@@ -85,8 +85,9 @@ function applyFilter(value: Value, filter: string | undefined): string {
  * 필터: json (YAML 안전 문자열/목록), link ([[위키링크]]), linkjson (프런트매터용 링크 목록)
  * 표지 주소가 비어 `]()`만 남은 줄은 깨진 이미지가 되므로 지운다.
  */
-export function renderTemplate(template: string, book: Book): string {
-	const values = bookToValues(book);
+/** `extra` adds values that don't come from the book, such as the reading status. */
+export function renderTemplate(template: string, book: Book, extra: Record<string, Value> = {}): string {
+	const values = { ...bookToValues(book), ...extra };
 	// {{#name}}…{{/name}} keeps its content only when name has a value.
 	const withSections = template.replace(/\{\{#(\w+)\}\}([\s\S]*?)\{\{\/\1\}\}/g, (_whole, name: string, inner: string) =>
 		name in values && !isEmptyValue(values[name]) ? inner : "",
@@ -221,13 +222,16 @@ published: {{publishDate:json}}
 isbn: {{isbn:json}}
 pages: {{pageCount}}
 series: {{series:json}}
-kdc: {{kdc:json}}
 categories: {{categories:json}}
 cover: {{coverUrl:json}}
 link: {{link:json}}
 source: {{source}}
 created: {{today}}
-status: 읽기 전
+status: {{status:json}}
+started:
+finished:
+rating:
+progress:
 tags:
   - book
 ---
@@ -252,6 +256,8 @@ tags:
 
 {{toc}}
 {{/toc}}
+## 인용
+
 ## 메모
 
 `;
@@ -267,13 +273,16 @@ published: {{publishDate:json}}
 isbn: {{isbn:json}}
 pages: {{pageCount}}
 series: {{series:json}}
-kdc: {{kdc:json}}
 categories: {{categories:json}}
 cover: {{coverUrl:json}}
 link: {{link:json}}
 source: {{source}}
 created: {{today}}
-status: to read
+status: {{status:json}}
+started:
+finished:
+rating:
+progress:
 tags:
   - book
 ---
@@ -298,6 +307,8 @@ tags:
 
 {{toc}}
 {{/toc}}
+## Quotes
+
 ## Notes
 
 `;

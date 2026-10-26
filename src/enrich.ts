@@ -46,7 +46,7 @@ export function mergeInto(base: Book, extra: Book, source: EnricherId): boolean 
 }
 
 /** Fields worth looking up elsewhere. When none are empty, enrichment is skipped. */
-const WANTED: Field[] = ["pageCount", "toc", "coverUrl", "description", "publisher", "publishDate", "kdc", "originalTitle", "categories"];
+const WANTED: Field[] = ["pageCount", "toc", "coverUrl", "description", "publisher", "publishDate", "originalTitle", "categories"];
 
 export function missingFields(book: Book): Field[] {
 	return WANTED.filter((f) => isEmptyValue(book[f]));

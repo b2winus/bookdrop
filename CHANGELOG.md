@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0
+
+- **Reading log:** commands to change the reading status, start or finish a book (with today's date), rate it (1–5, half stars), record pages read, and add quotes with page numbers. Stored as note properties: `status`, `started`, `finished`, `rating`, `progress`.
+- **Bookshelf view:** one command creates a Bases file (Obsidian 1.9+) with a cover gallery and views for reading, read this year, finished and to read. You choose the file name; it is remembered for next time.
+- New notes start with the reading properties and a *Quotes* section; new template variable `status`.
+- Status words and the quotes heading can be changed in settings.
+- Removed the National Library of Korea source.
+
 ## 0.4.0
 
 - New search sources: **Aladin** (page count, table of contents, original title, series, categories for Korean books) and **Open Library** (international books, no key needed).

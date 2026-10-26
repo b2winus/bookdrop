@@ -111,3 +111,34 @@
 .bookdrop-credit:empty {
 	display: none;
 }
+
+/* Reading log */
+.bookdrop-stars {
+	display: flex;
+	gap: var(--size-4-2);
+	justify-content: center;
+	margin-bottom: var(--size-4-3);
+}
+
+.bookdrop-star {
+	font-size: 1.8em;
+	line-height: 1;
+	padding: var(--size-4-1) var(--size-4-2);
+	color: var(--text-faint);
+	background: transparent;
+	box-shadow: none;
+}
+
+.bookdrop-star.is-on,
+.bookdrop-stars:hover .bookdrop-star {
+	color: var(--color-yellow);
+}
+
+.bookdrop-star:hover ~ .bookdrop-star {
+	color: var(--text-faint);
+}
+
+.bookdrop-rating-input,
+.bookdrop-quote-area {
+	width: 100%;
+}

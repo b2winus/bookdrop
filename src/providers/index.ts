@@ -3,7 +3,6 @@ import { searchKakao } from "./kakao";
 import { searchGoogle } from "./google";
 import { lookupAladin, searchAladin } from "./aladin";
 import { searchOpenLibrary } from "./openlibrary";
-import { lookupNl } from "./nl";
 import { hasHangul } from "./utils";
 import { t } from "../i18n";
 
@@ -11,7 +10,7 @@ import { t } from "../i18n";
 export const PROVIDERS: ProviderId[] = ["kakao", "aladin", "google", "openlibrary"];
 
 /** Sources that can fill in details by ISBN, in priority order (earlier wins when both have a value). */
-export const ENRICHERS: EnricherId[] = ["aladin", "nl", "kakao", "google", "openlibrary"];
+export const ENRICHERS: EnricherId[] = ["aladin", "kakao", "google", "openlibrary"];
 
 export function providerLabel(p: EnricherId): string {
 	switch (p) {
@@ -23,8 +22,6 @@ export function providerLabel(p: EnricherId): string {
 			return t("provider.google");
 		case "openlibrary":
 			return t("provider.openlibrary");
-		case "nl":
-			return t("provider.nl");
 	}
 }
 
@@ -35,8 +32,6 @@ export function isAvailable(p: EnricherId, opts: SearchOptions): boolean {
 			return !!opts.kakaoApiKey;
 		case "aladin":
 			return !!opts.aladinTtbKey;
-		case "nl":
-			return !!opts.nlApiKey;
 		case "google":
 		case "openlibrary":
 			return true;
@@ -61,8 +56,6 @@ export async function lookupIsbn(source: EnricherId, isbn: string, opts: SearchO
 	switch (source) {
 		case "aladin":
 			return lookupAladin(isbn, opts);
-		case "nl":
-			return lookupNl(isbn, opts);
 		case "kakao":
 			return (await searchKakao(isbn, opts))[0] ?? null;
 		case "google":
