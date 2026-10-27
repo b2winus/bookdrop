@@ -15,7 +15,7 @@ import { ENRICHERS, PROVIDERS, providerLabel, searchBooks } from "./providers";
 import { FolderSuggest } from "./ui/folder-suggest";
 import { DEFAULT_FILENAME_TEMPLATE, TEMPLATE_VARIABLES, defaultInsertTemplate, defaultNoteTemplate } from "./template";
 import { Key, LangSetting, getLang, t } from "./i18n";
-import { ReadingStatus, defaultStatusLabel } from "./reading";
+import { ReadingStatus, STATUSES, defaultStatusLabel, statusLabel } from "./reading";
 
 /** Default heading for quotes in the interface language. */
 export function defaultQuotesHeading(): string {
@@ -54,6 +54,10 @@ export interface BookdropSettings {
 	quotesHeading: string;
 	/** Bookshelf file name last used (without .base); empty = "내 책장" / "Bookshelf" */
 	bookshelfName: string;
+	/** Open the book log window right after creating a note */
+	logAfterCreate: boolean;
+	/** Status for new notes and the log window's starting choice */
+	defaultStatus: ReadingStatus;
 }
 
 /** Settings key for each enrichment source toggle. */
@@ -91,6 +95,8 @@ export const DEFAULT_SETTINGS: BookdropSettings = {
 	statusStopped: "",
 	quotesHeading: "",
 	bookshelfName: "",
+	logAfterCreate: true,
+	defaultStatus: "toRead",
 };
 
 type SettingsKey = keyof BookdropSettings;
@@ -305,6 +311,20 @@ export class BookdropSettingTab extends PluginSettingTab {
 			type: "group",
 			heading: t("set.readingGroup"),
 			items: [
+				{
+					name: t("set.logAfterCreate"),
+					desc: t("set.logAfterCreateDesc"),
+					control: { type: "toggle", key: "logAfterCreate" },
+				},
+				{
+					name: t("set.defaultStatus"),
+					desc: t("set.defaultStatusDesc"),
+					control: {
+						type: "dropdown",
+						key: "defaultStatus",
+						options: Object.fromEntries(STATUSES.map((st) => [st, statusLabel(this.plugin.settings, st)])),
+					},
+				},
 				statusRow("statusToRead", "toRead"),
 				statusRow("statusReading", "reading"),
 				statusRow("statusFinished", "finished"),

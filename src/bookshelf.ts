@@ -59,7 +59,7 @@ export function bookshelfBase(folder: string, labels: StatusLabels): string {
 			statusIs(labels, "finished"),
 			yamlQuote(`date(${PROP.finished}).year == today().year`),
 		]),
-		table(names.finished, ["file.name", "author", "publisher", PROP.started, PROP.finished, PROP.stars], [statusIs(labels, "finished")]),
+		table(names.finished, ["file.name", "author", PROP.started, PROP.finished, PROP.stars, PROP.oneLiner], [statusIs(labels, "finished")]),
 		table(names.toRead, ["file.name", "author", "publisher", PROP.pages], [statusIs(labels, "toRead")]),
 		"",
 	].join("\n");

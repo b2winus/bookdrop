@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.0
+
+- **Log window:** record status, a star rating (click or keyboard, half stars), a one-line review, a sentence to keep with its page, and a memo — all at once. Opens right after you create a book note (can be turned off) and from the new *Log this book* command.
+- The date in the log window becomes the start or finish date to match the status.
+- New `one_liner` property; the bookshelf's *finished* view shows it.
+- New setting: status for new notes (to read, reading, finished or stopped).
+- Quotes and memos are found under Korean or English headings, whichever the note uses.
+
 ## 0.5.2
 
 - Ratings are also written as stars: *Rate this book* now sets `stars` (e.g. `★★★★½`) next to the numeric `rating`, and the bookshelf view shows the stars. New notes include an empty `stars` property.

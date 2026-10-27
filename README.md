@@ -39,6 +39,7 @@ The interface is available in **English and Korean**. It follows Obsidian's lang
 | Search for a book and create a note | Search and create a new book note. Also available from the ribbon. |
 | Insert book info at cursor | Insert a rendered block into the current note. |
 | Fill current note's properties with book info | Add book properties to the active note. |
+| Log this book | One window for status, star rating, one-line review, a quote with its page, and a memo. Opens automatically after you create a note (can be turned off). |
 | Change reading status | Pick *to read*, *reading*, *finished* or *stopped*. |
 | Start reading this book / Mark this book as finished | Set the status and today's date in one step. |
 | Rate this book | 1–5 stars (half stars by typing, e.g. 3.5). |
@@ -115,6 +116,7 @@ started:
 finished:
 rating:
 stars:
+one_liner:
 progress:
 tags:
   - book
@@ -161,6 +163,19 @@ tags:
 
 ## Reading log
 
+### Log window
+
+Right after you create a book note, a **log window** opens (turn it off under *Settings → Reading log → Log the book right after creating its note*, or open it any time with **Log this book**):
+
+- **Status** — *to read*, *reading*, *finished* or *stopped*. The date field becomes *Started on* or *Finished on* to match.
+- **My rating** — click a star; the left half of a star gives half a star. Keyboard: ← → in half steps, 1–5, 0 to clear.
+- **One-line review**, **a sentence to keep** (with its page) and a **memo** (saved with the date).
+- **Ctrl/Cmd + Enter** saves; **Skip** closes without changes.
+
+Set **Status for new notes** in settings to start new notes as *reading* or *finished* instead of *to read*.
+
+### Properties
+
 Run the reading commands from the command palette (or give them hotkeys) while a book note is open. They write these note properties:
 
 | Property | Set by | Example |
@@ -170,6 +185,7 @@ Run the reading commands from the command palette (or give them hotkeys) while a
 | `finished` | Finishing a book | `2026-11-20` |
 | `rating` | *Rate this book* — a number, for sorting and filters | `4.5` |
 | `stars` | *Rate this book* — the same rating as stars, for reading | `★★★★½` |
+| `one_liner` | *Log this book* — a one-line review | `A book about courage` |
 | `progress` | *Update reading progress* (set to the page count when you finish) | `120` |
 
 - Status words can be changed under **Settings → Bookdrop → Reading log**. Both the English and Korean defaults are always recognised.

@@ -142,3 +142,79 @@
 .bookdrop-quote-area {
 	width: 100%;
 }
+
+/* Book log window (same star widget as Media Diary) */
+.bookdrop-log {
+	width: min(600px, 94vw);
+}
+
+.bookdrop-stars-wrap {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+}
+
+.bookdrop-star-row {
+	display: inline-flex;
+	cursor: pointer;
+	font-size: 28px;
+	line-height: 1;
+	user-select: none;
+	border-radius: var(--radius-s);
+	touch-action: manipulation;
+}
+
+.bookdrop-star-row:focus-visible {
+	box-shadow: 0 0 0 2px var(--interactive-accent);
+	outline: none;
+}
+
+.bookdrop-star-cell {
+	color: var(--text-faint);
+	padding: 0 1px;
+}
+
+.bookdrop-star-cell.is-full {
+	color: var(--color-yellow);
+}
+
+.bookdrop-star-cell.is-half {
+	background: linear-gradient(90deg, var(--color-yellow) 50%, var(--text-faint) 50%);
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+}
+
+.bookdrop-rating-text {
+	min-width: 4.5em;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	font-variant-numeric: tabular-nums;
+}
+
+.bookdrop-oneliner {
+	width: min(320px, 60vw);
+}
+
+.bookdrop-page-input {
+	width: 6em;
+}
+
+.bookdrop-textarea-setting {
+	flex-wrap: wrap;
+}
+
+.bookdrop-textarea-setting .setting-item-control {
+	flex: 1 1 100%;
+}
+
+.bookdrop-textarea {
+	width: 100%;
+	resize: vertical;
+}
+
+.bookdrop-hint {
+	margin-right: auto;
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+}

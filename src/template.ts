@@ -232,6 +232,7 @@ started:
 finished:
 rating:
 stars:
+one_liner:
 progress:
 tags:
   - book
@@ -284,6 +285,7 @@ started:
 finished:
 rating:
 stars:
+one_liner:
 progress:
 tags:
   - book

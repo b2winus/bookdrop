@@ -3,6 +3,7 @@ import { BookdropSettingTab, BookdropSettings, DEFAULT_SETTINGS, ENRICH_KEYS, de
 import { PROP, ReadingStatus, applyProgress, applyRating, applyStatus, insertQuote, readNumber, readStatus, stars, statusLabel } from "./reading";
 import { bookshelfBase } from "./bookshelf";
 import { NameModal, ProgressModal, QuoteModal, RatingModal, StatusPickModal } from "./ui/reading-modals";
+import { BookLogModal } from "./ui/log-modal";
 import { BookSearchModal } from "./ui/search-modal";
 import { FolderPickModal } from "./ui/folder-suggest";
 import { Book, EnricherId, SearchOptions } from "./types";
@@ -31,7 +32,7 @@ export default class BookdropPlugin extends Plugin {
 			editorCallback: (editor: Editor) => {
 				const selection = editor.getSelection().trim();
 				this.openSearch(selection, (book) => {
-					editor.replaceSelection(renderTemplate(this.insertTemplate(), book, { status: statusLabel(this.settings, "toRead") }));
+					editor.replaceSelection(renderTemplate(this.insertTemplate(), book, { status: statusLabel(this.settings, this.settings.defaultStatus) }));
 				});
 			},
 		});
@@ -69,6 +70,7 @@ export default class BookdropPlugin extends Plugin {
 				},
 			});
 
+		onNote("log-book", t("cmd.log"), (file) => this.openLog(file));
 		onNote("reading-status", t("cmd.status"), (file) => {
 			new StatusPickModal(this.app, (s) => statusLabel(this.settings, s), readStatus(this.app, file, this.settings), (s) => void this.setStatus(file, s)).open();
 		});
@@ -90,6 +92,15 @@ export default class BookdropPlugin extends Plugin {
 			name: t("cmd.bookshelf"),
 			callback: () => void this.createBookshelf(),
 		});
+	}
+
+	/** The one-window log: status, rating, one-liner, quote, memo, date. */
+	openLog(file: TFile): void {
+		new BookLogModal(this.app, file, {
+			labels: this.settings,
+			quotesHeading: this.settings.quotesHeading,
+			defaultStatus: this.settings.defaultStatus,
+		}).open();
 	}
 
 	async setStatus(file: TFile, status: ReadingStatus): Promise<void> {
@@ -223,12 +234,13 @@ export default class BookdropPlugin extends Plugin {
 			return;
 		}
 
-		const content = renderTemplate(this.noteTemplate(), book, { status: statusLabel(this.settings, "toRead") });
+		const content = renderTemplate(this.noteTemplate(), book, { status: statusLabel(this.settings, this.settings.defaultStatus) });
 		const file = await this.app.vault.create(path, content);
 		new Notice(t("notice.created", { name: file.basename }));
 		if (this.settings.openAfterCreate) {
 			await this.app.workspace.getLeaf(false).openFile(file);
 		}
+		if (this.settings.logAfterCreate) this.openLog(file);
 	}
 
 	/** 폴더 선택 창을 띄워 경로를 돌려준다. 취소하면 null */

@@ -17,6 +17,8 @@ export const PROP = {
 	rating: "rating",
 	/** Star text shown next to the numeric rating, e.g. ★★★★½ */
 	stars: "stars",
+	/** One-line review */
+	oneLiner: "one_liner",
 	progress: "progress",
 	pages: "pages",
 } as const;
@@ -141,25 +143,23 @@ export function stars(rating: number): string {
 	return "★".repeat(full) + (half ? "½" : "") + "☆".repeat(5 - full - (half ? 1 : 0));
 }
 
-/**
- * Adds a quote under the quotes heading (created at the end of the note if missing),
- * after any quotes already there and before the next heading of the same or higher level.
- */
-export function insertQuote(content: string, heading: string, quote: string, page: string): string {
-	const body = quote
-		.trim()
-		.split(/\r?\n/)
-		.map((l) => `> ${l}`.trimEnd())
-		.join("\n");
-	const cite = page.trim() ? `\n> — p. ${page.trim()}` : "";
-	const block = `${body}${cite}`;
+function escapeRe(s: string): string {
+	return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
+/**
+ * Adds a block to the end of a section. The section starts at a heading whose text is one of
+ * `headings` (so notes made in either language are found) and ends before the next heading of the
+ * same or higher level. If no such heading exists, `## newHeading` is added at the end of the note.
+ */
+export function insertIntoSection(content: string, headings: string[], newHeading: string, block: string): string {
+	const names = [...new Set(headings.map((h) => h.trim()).filter(Boolean))];
 	const lines = content.split("\n");
-	const headingRe = new RegExp(`^(#{1,6})\\s+${heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`);
-	const start = lines.findIndex((l) => headingRe.test(l));
+	const headingRe = new RegExp(`^(#{1,6})\\s+(?:${names.map(escapeRe).join("|")})\\s*$`);
+	const start = names.length ? lines.findIndex((l) => headingRe.test(l)) : -1;
 	if (start < 0) {
 		const trimmed = content.replace(/\s+$/, "");
-		return `${trimmed}${trimmed ? "\n\n" : ""}## ${heading}\n\n${block}\n`;
+		return `${trimmed}${trimmed ? "\n\n" : ""}## ${newHeading}\n\n${block}\n`;
 	}
 	const level = (headingRe.exec(lines[start]) as RegExpExecArray)[1].length;
 	let end = lines.length;
@@ -177,4 +177,61 @@ export function insertQuote(content: string, heading: string, quote: string, pag
 	const after = lines.slice(end);
 	const insert = ["", ...block.split("\n"), ""];
 	return [...before, ...insert, ...after].join("\n");
+}
+
+/** "> quote" lines, with "> — p. 23" when a page is given. */
+export function quoteBlock(quote: string, page: string): string {
+	const body = quote
+		.trim()
+		.split(/\r?\n/)
+		.map((l) => `> ${l}`.trimEnd())
+		.join("\n");
+	return page.trim() ? `${body}\n> — p. ${page.trim()}` : body;
+}
+
+/** A memo with its date in bold on the first line. */
+export function memoBlock(memo: string, date: string): string {
+	const body = memo.trim();
+	return date ? `**${date}**\n${body}` : body;
+}
+
+/** Quotes heading names in both languages, plus the user's own. */
+export function quoteHeadings(custom: string): string[] {
+	return [custom, "인용", "Quotes"];
+}
+
+/** Memo heading names in both languages (the default templates' "메모" / "Notes"). */
+export function memoHeadings(): string[] {
+	return ["메모", "Notes"];
+}
+
+/**
+ * Adds a quote under the quotes heading (created at the end of the note if missing),
+ * after any quotes already there and before the next heading of the same or higher level.
+ */
+export function insertQuote(content: string, heading: string, quote: string, page: string): string {
+	return insertIntoSection(content, quoteHeadings(heading), heading, quoteBlock(quote, page));
+}
+
+/** Everything the book log window can record at once. */
+export interface BookLog {
+	status: ReadingStatus;
+	/** 0 = no rating */
+	rating: number;
+	oneLiner: string;
+	/** YYYY-MM-DD used for started/finished; "" = today */
+	date: string;
+}
+
+/**
+ * Applies a log entry to frontmatter: status (with its dates), rating and stars, and the one-line review.
+ * A rating of 0 or an empty one-liner clears that value.
+ */
+export function applyLog(fm: Frontmatter, labels: StatusLabels, log: BookLog): void {
+	const date = /^\d{4}-\d{2}-\d{2}$/.test(log.date) ? log.date : todayString();
+	applyStatus(fm, labels, log.status, date);
+	applyRating(fm, log.rating > 0 ? log.rating : null);
+	const one = log.oneLiner.trim();
+	if (one) fm[PROP.oneLiner] = one;
+	else delete fm[PROP.oneLiner];
 }
