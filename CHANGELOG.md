@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.1
+
+- Log window: the rating row no longer shifts while you hover or pick stars. The value next to the stars is shown as a number (e.g. `4.5 / 5`) in a fixed-width space.
+
 ## 0.6.0
 
 - **Log window:** record status, a star rating (click or keyboard, half stars), a one-line review, a sentence to keep with its page, and a memo — all at once. Opens right after you create a book note (can be turned off) and from the new *Log this book* command.

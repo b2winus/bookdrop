@@ -186,10 +186,24 @@
 }
 
 .bookdrop-rating-text {
-	min-width: 4.5em;
+	/* Fixed width: the text changes while hovering, the row must not. */
+	display: inline-block;
+	flex: none;
+	width: 6em;
+	white-space: nowrap;
 	color: var(--text-muted);
 	font-size: var(--font-ui-small);
 	font-variant-numeric: tabular-nums;
+}
+
+/* Keep the rating control a constant size so the label and description beside it never reflow. */
+.bookdrop-rating-setting .setting-item-control {
+	flex: none;
+}
+
+.bookdrop-stars-wrap,
+.bookdrop-star-row {
+	flex: none;
 }
 
 .bookdrop-oneliner {

@@ -12,7 +12,6 @@ import {
 	parseStatus,
 	quoteBlock,
 	quoteHeadings,
-	stars,
 	statusLabel,
 	todayString,
 } from "../reading";
@@ -196,7 +195,8 @@ export class BookLogModal extends Modal {
 			c.toggleClass("is-half", value === i + 0.5);
 		});
 		this.starsEl.setAttr("aria-valuenow", String(value));
-		this.ratingText.setText(value ? `${stars(value)}  ${value}` : t("log.noRating"));
+		// Number only (the stars are drawn beside it) in a fixed-width box, so hovering doesn't shift the row.
+		this.ratingText.setText(value ? `${value} / 5` : t("log.noRating"));
 	}
 
 	private async save(): Promise<void> {
